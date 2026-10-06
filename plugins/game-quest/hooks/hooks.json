@@ -1,0 +1,6 @@
+{
+  "description": "GAME MODE · Quest hooks module",
+  "modules": [
+    "./register.tsx"
+  ]
+}

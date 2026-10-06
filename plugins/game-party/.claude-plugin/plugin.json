@@ -1,0 +1,52 @@
+{
+  "name": "game-party",
+  "displayName": "GAME MODE · Party",
+  "version": "0.2.0",
+  "description": "/party: each subagent of the session with ACTIVE, CLEAR or FAIL, a bar of its tool calls and its job; opens by itself when one starts on a wide terminal",
+  "author": {
+    "name": "Reason of Moon",
+    "url": "https://github.com/Reasonofmoon"
+  },
+  "homepage": "https://github.com/Reasonofmoon/bitgame-mods/tree/main/plugins/game-party",
+  "repository": "https://github.com/Reasonofmoon/bitgame-mods",
+  "license": "MIT",
+  "keywords": [
+    "mod",
+    "game-mode",
+    "subagents",
+    "agents",
+    "pane"
+  ],
+  "types": "./types/index.d.ts",
+  "userConfig": {
+    "intensity": {
+      "type": "string",
+      "title": "Intensity",
+      "description": "off draws nothing; casual draws the party; hardcore adds failed calls and run time",
+      "default": "casual",
+      "options": [
+        "off",
+        "casual",
+        "hardcore"
+      ]
+    },
+    "palette": {
+      "type": "string",
+      "title": "Palette",
+      "description": "nes, gameboy and amber are made for dark terminals; theme follows your Claude Code theme (use it on a light background)",
+      "default": "nes",
+      "options": [
+        "nes",
+        "gameboy",
+        "amber",
+        "theme"
+      ]
+    },
+    "autoOpen": {
+      "type": "boolean",
+      "title": "Open when a subagent starts",
+      "description": "Open the pane by itself when the first subagent of a session starts (on terminals 144 columns wide or more)",
+      "default": true
+    }
+  }
+}

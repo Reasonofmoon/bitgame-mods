@@ -1,0 +1,6 @@
+{
+  "description": "GAME MODE · Party hooks module",
+  "modules": [
+    "./register.tsx"
+  ]
+}
