@@ -184,8 +184,14 @@ function field(input: unknown, key: string): string | undefined {
   return typeof value === 'string' && value.length > 0 ? value : undefined
 }
 
-function short(path: string, root: string): string {
-  return root !== '' && path.startsWith(root + '/') ? path.slice(root.length + 1) : path
+/** The path relative to the project root; on Windows, slash direction and case are ignored. */
+export function short(path: string, root: string): string {
+  if (root === '') return path
+  const p = path.replace(/\\/g, '/')
+  const r = root.replace(/\\/g, '/').replace(/\/$/, '')
+  const isWin = /^[A-Za-z]:\//.test(r)
+  const inside = isWin ? p.toLowerCase().startsWith(r.toLowerCase() + '/') : p.startsWith(r + '/')
+  return inside ? p.slice(r.length + 1) : path
 }
 
 export function summarize(tool: string, input: unknown, root: string): string {

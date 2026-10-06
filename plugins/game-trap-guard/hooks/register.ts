@@ -213,7 +213,7 @@ function article(kind: string): string {
 }
 
 function baseName(path: string): string {
-  return path.split('/').pop() ?? path
+  return path.split(/[\\/]/).pop() ?? path
 }
 
 /** Enough to recognise the value, never the value itself. */

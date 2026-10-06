@@ -141,3 +141,13 @@ test('only you can switch it off; anyone can switch it back to block', async ($,
   expect(refusal(await $.tool.call({ tool: 'Bash', command: 'cat .env' }))).toContain('game-trap-guard blocked this call')
   expect(ran).toEqual(['Bash'])
 })
+
+test('a Windows path to a secret file is refused and named by its file name', async ($, on) => {
+  const { ran } = world(on)
+  await $.session.start({ cwd: 'C:\\Users\\me\\proj', surface: 'terminal', isInteractive: true })
+  const read = refusal(await $.tool.call({ tool: 'Read', file_path: 'C:\\Users\\me\\proj\\.env' }))
+  expect(read).toContain('reads a .env file into the conversation (.env)')
+  expect(refusal(await $.tool.call({ tool: 'Read', file_path: 'C:\\Users\\me\\.aws\\credentials' }))).toContain('AWS credentials file')
+  expect(refusal(await $.tool.call({ tool: 'Read', file_path: 'C:\\Users\\me\\proj\\.env.example' }))).toBeUndefined()
+  expect(ran).toEqual(['Read'])
+})

@@ -15,6 +15,8 @@ import type { EngineInterface, Register } from 'claude-code'
 //   disk  mkfs, dd of=/dev/…, a fork bomb
 //   files Write/Edit outside the project, ~/.claude and temp folders
 //         (symbolic links resolved)
+// On Windows, paths compare without regard to case or slash direction, and
+// Git Bash drives (/c/…) count as C:\….
 //
 // mode block (default) refuses before the call runs; warn lets it run and
 // tells Claude and you. /barrier pass lets the next refused call run once.
@@ -26,6 +28,7 @@ type Finding = { why: string }
 type Context = {
   cwd: string
   home: string
+  win: boolean
   isAllowed: (path: string) => boolean
   branch: () => Promise<string | null>
 }
@@ -59,17 +62,24 @@ export const register: Register = (on, options) => {
   let projectRoot = ''
   let cwd = ''
   let home = ''
+  let win = false
 
   on('session.start', async ($, e, next) => {
-    projectRoot = normalize(await $.session.root())
-    cwd = normalize(await $.session.cwd())
-    home = normalize((await $.env.get('HOME')) ?? '')
-    const tmp = (await $.env.get('TMPDIR')) ?? ''
+    const rawRoot = await $.session.root()
+    const rawCwd = await $.session.cwd()
+    win = isWindowsPath(rawRoot) || isWindowsPath(rawCwd) || (await $.env.get('OS')) === 'Windows_NT'
+    projectRoot = normalize(rawRoot, win)
+    cwd = normalize(rawCwd, win)
+    let rawHome = (await $.env.get('HOME')) ?? ''
+    if (rawHome === '' && win) rawHome = (await $.env.get('USERPROFILE')) ?? ''
+    home = rawHome === '' ? '' : normalize(rawHome, win)
+    const temps = [(await $.env.get('TMPDIR')) ?? '']
+    if (win) temps.push((await $.env.get('TEMP')) ?? '', (await $.env.get('TMP')) ?? '')
     const listed = [
       projectRoot,
       cwd,
       home ? `${home}/.claude` : '',
-      tmp,
+      ...temps,
       '/tmp',
       '/private/tmp',
       '/var/folders',
@@ -80,10 +90,16 @@ export const register: Register = (on, options) => {
         .filter(p => p.length > 0)
         .map(p => (p.startsWith('~') ? home + p.slice(1) : p)),
     ]
-    roots = [...new Set(listed.filter(p => p.startsWith('/')).map(normalize))]
+    roots = [...new Set(listed.filter(p => p !== '' && isAbsolute(p, win)).map(p => normalize(p, win)))]
     for (const root of [...roots]) {
-      const real = await realOf($, root)
+      const real = await realOf($, root, win)
       if (real && !roots.includes(real)) roots.push(real)
+    }
+    // Without the project folder among them, every edit would count as outside the project:
+    // check nothing rather than refuse everything.
+    if (!roots.includes(projectRoot) && !roots.includes(cwd)) {
+      roots = []
+      $.ui.log('could not read the project folder, so edits outside the project are not checked this session')
     }
 
     const stored = await $.store.get('mode')
@@ -96,13 +112,15 @@ export const register: Register = (on, options) => {
     return next(e)
   })
 
-  const isAllowed = (path: string) => roots.length === 0 || roots.some(root => path === root || path.startsWith(root + '/'))
+  const isAllowed = (path: string) =>
+    roots.length === 0 || roots.some(root => path === root || path.startsWith(root.endsWith('/') ? root : root + '/'))
 
   on('tool.call', async ($, e, next) => {
     if (mode === 'off') return next(e)
     const ctx: Context = {
       cwd: cwd || '/',
       home,
+      win,
       isAllowed,
       branch: () => currentBranch($, projectRoot),
     }
@@ -173,9 +191,9 @@ async function inspect($: EngineInterface, tool: string, input: Record<string, u
   if (tool === 'Write' || tool === 'Edit' || tool === 'MultiEdit' || tool === 'NotebookEdit') {
     const raw = str(input, 'file_path') ?? str(input, 'notebook_path')
     if (raw === undefined) return undefined
-    const path = normalize(raw.startsWith('/') ? raw : `${ctx.cwd}/${raw}`)
+    const path = normalize(isAbsolute(raw, ctx.win) ? raw : `${ctx.cwd}/${raw}`, ctx.win)
     if (!ctx.isAllowed(path)) return { why: `edits a file outside the project (${path})` }
-    const real = await realOf($, path)
+    const real = await realOf($, path, ctx.win)
     if (real !== undefined && !ctx.isAllowed(real)) return { why: `edits a file outside the project through a link (${path} → ${real})` }
   }
   return undefined
@@ -265,9 +283,13 @@ function inspectRemoval(raw: string, ctx: Context, projectRoot: string): Finding
   if (/^(?:\/|\/\*|~|~\/|~\/\*|\$HOME|\$\{HOME\}|\$HOME\/\*?|\.|\.\/|\.\/\*|\*|\.\.|\.\.\/|\.\.\/\*)$/.test(target)) {
     return { why: `deletes everything under ${target} (rm -r)` }
   }
+  // Windows: a drive (C:\, /c/), the profile folder, or the current folder spelled with a backslash.
+  if (ctx.win && /^(?:[A-Za-z]:[\\/]?\*?|\/(?:cygdrive\/)?[A-Za-z]\/?\*?|~\\\*?|\.\\\*?|\.\.\\\*?|\$\{?USERPROFILE\}?[\\/]?\*?)$/.test(target)) {
+    return { why: `deletes everything under ${target} (rm -r)` }
+  }
   if (target.includes('$') || target.includes('`')) return undefined
-  const expanded = target.startsWith('~/') ? ctx.home + target.slice(1) : target
-  const path = normalize(expanded.startsWith('/') ? expanded : `${ctx.cwd}/${expanded}`)
+  const expanded = /^~[\\/]/.test(target) ? ctx.home + target.slice(1) : target
+  const path = normalize(isAbsolute(expanded, ctx.win) ? expanded : `${ctx.cwd}/${expanded}`, ctx.win)
   if (projectRoot !== '' && path === projectRoot) return { why: `deletes the project root (${path})` }
   if (!ctx.isAllowed(path)) return { why: `deletes outside the project (${path})` }
   return undefined
@@ -284,7 +306,7 @@ async function currentBranch($: EngineInterface, root: string): Promise<string |
 }
 
 /** The path with every symbolic link resolved, through its nearest existing ancestor. */
-async function realOf($: EngineInterface, path: string): Promise<string | undefined> {
+async function realOf($: EngineInterface, path: string, win: boolean): Promise<string | undefined> {
   try {
     let cur = path
     const rest: string[] = []
@@ -292,12 +314,14 @@ async function realOf($: EngineInterface, path: string): Promise<string | undefi
       if (await $.fs.exists(cur)) {
         const stat = await $.fs.stat(cur, { resolve: true })
         if (stat.realPath === undefined) return undefined
-        return normalize([stat.realPath, ...rest].join('/'))
+        return normalize([stat.realPath, ...rest].join('/'), win)
       }
-      if (cur === '/') return undefined
+      if (isRoot(cur)) return undefined
       const cut = cur.lastIndexOf('/')
       rest.unshift(cur.slice(cut + 1))
-      cur = cut <= 0 ? '/' : cur.slice(0, cut)
+      const parent = cut <= 0 ? '/' : cur.slice(0, cut)
+      // `c:` alone is the current folder on drive C, not its root.
+      cur = /^[a-z]:$/.test(parent) ? `${parent}/` : parent
     }
   } catch {
     // Unreadable: judged by the spelling alone.
@@ -305,16 +329,49 @@ async function realOf($: EngineInterface, path: string): Promise<string | undefi
   return undefined
 }
 
-/** Collapses `.`, `..` and repeated slashes; keeps a leading slash. */
-export function normalize(path: string): string {
-  const isAbsolute = path.startsWith('/')
+function isRoot(path: string): boolean {
+  return path === '/' || /^[a-z]:\/$/.test(path) || /^\/\/[^/]+\/[^/]+$/.test(path)
+}
+
+/** A Windows spelling: a drive (`C:\`, `c:/`) or a network share (`\\server\share`). */
+export function isWindowsPath(path: string): boolean {
+  return /^[A-Za-z]:[\\/]/.test(path) || path.startsWith('\\\\')
+}
+
+function isAbsolute(path: string, win: boolean): boolean {
+  return path.startsWith('/') || (win && isWindowsPath(path))
+}
+
+/**
+ * One comparable spelling of a path: `.`, `..` and repeated slashes collapsed. With `win` (a
+ * Windows session), backslashes become slashes, a Git Bash drive (`/c/…`) becomes `c:/…`, and
+ * the path is lower-cased, as Windows file names ignore case.
+ */
+export function normalize(path: string, win = false): string {
+  let p = path
+  let prefix = ''
+  if (win) {
+    p = p.replace(/\\/g, '/').toLowerCase()
+    const bash = /^\/(?:cygdrive\/)?([a-z])(?=\/|$)/.exec(p)
+    if (bash) p = `${bash[1]}:${p.slice(bash[0].length)}`
+    const drive = /^([a-z]):/.exec(p)
+    if (drive) {
+      prefix = `${drive[1]}:/`
+      p = p.slice(2)
+    } else if (p.startsWith('//')) {
+      prefix = '//'
+      p = p.slice(2)
+    }
+  }
+  const absolute = prefix !== '' || p.startsWith('/')
   const out: string[] = []
-  for (const part of path.split('/')) {
+  for (const part of p.split('/')) {
     if (part === '' || part === '.') continue
     if (part === '..') out.pop()
     else out.push(part)
   }
-  return (isAbsolute ? '/' : '') + out.join('/') || (isAbsolute ? '/' : '.')
+  if (prefix !== '') return prefix + out.join('/')
+  return (absolute ? '/' : '') + out.join('/') || (absolute ? '/' : '.')
 }
 
 function tokens(segment: string): string[] {
