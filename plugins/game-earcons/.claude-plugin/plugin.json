@@ -2,19 +2,31 @@
   "name": "game-earcons",
   "displayName": "GAME MODE · Earcons",
   "version": "0.1.1",
-  "description": "8-bit sound cues: a permission prompt or question waiting on you, a long turn finished, an error, a guard refusing a call, a save (macOS)",
-  "author": { "name": "Reason of Moon", "url": "https://github.com/Reasonofmoon" },
+  "description": "8-bit sound cues on macOS, Windows and Linux: a permission prompt or question waiting on you, a long turn finished, an error, a guard refusing a call, a save",
+  "author": {
+    "name": "Reason of Moon",
+    "url": "https://github.com/Reasonofmoon"
+  },
   "homepage": "https://github.com/Reasonofmoon/bitgame-mods/tree/main/plugins/game-earcons",
   "repository": "https://github.com/Reasonofmoon/bitgame-mods",
   "license": "MIT",
-  "keywords": ["mod", "game-mode", "sound", "notifications"],
+  "keywords": [
+    "mod",
+    "game-mode",
+    "sound",
+    "notifications"
+  ],
   "userConfig": {
     "intensity": {
       "type": "string",
       "title": "Intensity",
       "description": "off is silent; casual plays ask, block, save, errors and turns of minTurnSeconds or longer; hardcore adds every turn, failed tool calls and file changes",
       "default": "casual",
-      "options": ["off", "casual", "hardcore"]
+      "options": [
+        "off",
+        "casual",
+        "hardcore"
+      ]
     },
     "volume": {
       "type": "number",
