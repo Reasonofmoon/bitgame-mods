@@ -16,7 +16,7 @@ const REPLY = JSON.stringify({
 
 type Row = { role: 'user' | 'assistant'; text: string; toolUses: { tool_use_id: string; tool: string; input: Record<string, unknown> }[] }
 
-type Opts = { store?: Record<string, unknown>; reply?: string | null; root?: string; rows?: Row[] }
+type Opts = { store?: Record<string, unknown>; reply?: string | null; root?: string; rows?: Row[]; turns?: number }
 
 function world(on: On, opts: Opts = {}) {
   mock.store(on, opts.store ?? {})
@@ -26,7 +26,7 @@ function world(on: On, opts: Opts = {}) {
   const filled: string[] = []
   on('session.start', (_, e) => ({ cwd: e.cwd }))
   on('session.root', () => ({ value: opts.root ?? '/proj' }))
-  on('session.turns', () => ({ value: 12 }))
+  on('session.turns', () => ({ value: opts.turns ?? 12 }))
   on('session.usage', () => ({ value: { startedAt: 0, context: { window: 200_000, percent: 38 }, rateLimits: [], cost: { usd: 1.5 } } }))
   on('command.register', (_, e) => ({ value: { command: e.name } }))
   on('ui.toast', () => ({ value: undefined }))
@@ -66,11 +66,17 @@ function world(on: On, opts: Opts = {}) {
     return { isFilled: true }
   })
   on('prompt.submit', (_, e) => ({ text: e.text }))
+  const copied: string[] = []
+  on('ui.copy', (_, e) => {
+    copied.push(e.text)
+    return { value: { isCopied: true as const } }
+  })
+  on('tool.call', () => ({ result: { stdout: 'ok', stderr: '', interrupted: false } }))
   on('ui.render', ($, e) => {
     const { Text } = $.ui.resolve(e)
     return h(Text, { dimColor: true }, 'engine') as RenderElement
   })
-  return { clock, statuses, suggested, filled, completions }
+  return { clock, statuses, suggested, filled, completions, copied }
 }
 
 async function start($: Engine) {
@@ -86,13 +92,19 @@ function save(title: string, savedAt: number, resume = `resume ${title}`) {
 }
 
 test('/save writes the save screen and keeps it for the project', async ($, on) => {
-  world(on)
+  const { copied } = world(on)
   await start($)
+  for (let i = 0; i < 5; i++) await $.tool.call({ tool: 'Bash', command: 'true' })
   const out = await $.command.run(run('save'))
   const text = out.text ?? ''
-  expect(text.split('\n').slice(0, 3)).toEqual(['◆ SAVE POINT · 로그인 버그 수정', expect.stringContaining('SLOT 1/1 · '), '[CLEARED]'])
-  expect(text).toContain('TURN 12 · $1.50 · CTX 38%')
+  const lines = text.split('\n')
+  expect(lines[0]).toBe('◆ SAVE POINT · 로그인 버그 수정')
+  expect(lines[1]).toContain('SLOT 1/1 · ')
+  expect(lines[1]).toContain('DAY 1 · LV 2 (5) · TURN 12 · $1.50 · CTX 38%')
+  expect(lines[2]).toMatch(/^\[CODE\] SP02-[A-Z0-9]{4}-MOON · COPIED$/)
   expect(text).toContain('[PASSWORD]\nsrc/auth.ts의 refresh()부터 이어서, npm test 실패 2건을 고쳐줘')
+  expect(copied).toEqual(['src/auth.ts의 refresh()부터 이어서, npm test 실패 2건을 고쳐줘'])
+  const code = /SP02-[A-Z0-9]{4}-MOON/.exec(lines[2] ?? '')?.[0]
 
   for (const surface of ['terminal', 'desktop'] as const) {
     const ui = await $.ui.mount({
@@ -102,19 +114,28 @@ test('/save writes the save screen and keeps it for the project', async ($, on) 
       props: { command: 'save', args: '', text, isErrored: false },
     })
     const shown = (await ui.findAll({ type: 'Text' })).map(t => t.text)
-    expect(shown[0]).toBe('★ SAVE POINT ★  로그인 버그 수정')
-    expect(shown).toContain('▣ CLEARED  +120 EXP')
-    expect(shown).toContain('  ✓ auth.ts 수정')
-    expect(shown).toContain('▢ QUEST LOG  남은 2')
-    expect(shown).toContain('  ▶ 만료 단위를 초로 통일할지')
-    expect(shown).toContain('src/auth.ts의 refresh()부터 이어서, npm test 실패 2건을 고쳐줘')
-    expect(shown).toContain('  ◆ branch fix/token-expiry')
+    expect(shown[0]).toBe('◆ ★ SAVE POINT ★')
+    expect(shown).toContain('QUEST · 로그인 버그 수정')
+    expect(shown).toContain('LV 02 █░░░░░░░░░ EXP')
+    expect(shown).toContain('CTX ████░░░░░░ 38%')
+    expect(shown).toContain('+120 EXP')
+    expect(shown).toContain('auth.ts 수정')
+    expect(shown).toContain('남은 퀘스트 2')
+    expect(shown).toContain('MAIN')
+    expect(shown).toContain('▶ ')
+    expect(shown).toContain('만료 단위를 초로 통일할지')
+    expect(shown).toContain('◆ auth.ts')
+    expect(shown).toContain('▣ branch fix/token-…')
+    expect(shown).toContain(code)
+    expect(shown).toContain(' COPIED! ')
+    expect(shown).toContain(`▸ /load ${code} · 빈 입력창 Tab 이어하기`)
+    expect(shown).toContain('▶ 「src/auth.ts의 refresh()부터 이어서, npm test 실패 2건을 고쳐줘」')
     await ui.unmount()
   }
 
   const list = await $.command.run(run('save', 'list'))
   expect(list.text).toContain('1. ')
-  expect(list.text).toContain('로그인 버그 수정')
+  expect(list.text).toContain(`로그인 버그 수정 · ${code}`)
 })
 
 test('a row that leads with the answering plugins\' names is still drawn as the save screen', async ($, on) => {
@@ -127,7 +148,7 @@ test('a row that leads with the answering plugins\' names is still drawn as the 
     component: 'CommandOutput',
     props: { command: 'save', args: '', text: 'game-save-point+game-earcons: ' + (out.text ?? ''), isErrored: false },
   })
-  expect((await ui.findAll({ type: 'Text' }))[0]?.text).toBe('★ SAVE POINT ★  로그인 버그 수정')
+  expect((await ui.findAll({ type: 'Text' }))[0]?.text).toBe('◆ ★ SAVE POINT ★')
 })
 
 test('a reply that is not JSON is kept as the resume prompt', async ($, on) => {
@@ -215,4 +236,63 @@ test('off leaves the output row to the engine', { options: { intensity: 'off' } 
     props: { command: 'save', args: '', text: out.text ?? '', isErrored: false },
   })
   expect((await ui.drawn()) as unknown).toMatchObject({ type: 'Text', children: ['engine'] })
+})
+
+const BAND = {
+  component: 'AbovePrompt' as const,
+  props: { hasSurvey: false, isWorking: false, maxRows: 14, bodyColumns: 110, scroll: { offset: 0, bodyRows: 13 }, view: {} },
+}
+
+test('a new session in a folder with saves opens on the title screen; CONTINUE fills the latest resume prompt', async ($, on) => {
+  const { filled } = world(on, {
+    turns: 0,
+    store: { slots: { '/proj': [{ ...save('로그인 버그 수정', NOW - 3_600_000, 'refresh()부터'), hits: 30, day: 2, todo: ['a', 'b'] }, save('older', NOW - DAY, 'older one')] } },
+  })
+  await start($)
+  const ui = await $.ui.mount({ plugin: 'game-save-point', surface: 'terminal', ...BAND })
+  const shown = (await ui.findAll({ type: 'Text' })).map(t => t.text)
+  expect(shown).toContain('◆ S A V E   P O I N T ◆')
+  expect(shown).toContain('▸ SLOT 1')
+  expect(shown).toContain('LV 03 · DAY 2')
+  expect(shown).toContain('로그인 버그 수정 · 퀘스트 2')
+  expect(shown).toContain('- NO DATA -')
+  expect(shown).toContain('PRESS START')
+  expect(shown).toContain('engine')
+  await ui.press({ key: 'continue' })
+  expect(filled).toEqual(['refresh()부터'])
+  await ui.unmount()
+
+  const after = await $.ui.mount({ plugin: 'game-save-point', surface: 'terminal', ...BAND })
+  expect((await after.drawn()) as unknown).toMatchObject({ type: 'Text', children: ['engine'] })
+})
+
+test('LOAD shows a button per slot; NEW GAME and the first prompt close the title', async ($, on) => {
+  const { filled } = world(on, { turns: 0, store: { slots: { '/proj': [save('new', NOW - 1000, 'newest'), save('older', NOW - 5000, 'older one')] } } })
+  await start($)
+  const ui = await $.ui.mount({ plugin: 'game-save-point', surface: 'terminal', ...BAND })
+  expect(await ui.find({ type: 'Button', key: 'load2' })).toBeUndefined()
+  await ui.press({ key: 'load' })
+  await ui.press({ key: 'load2' })
+  expect(filled).toEqual(['older one'])
+  await ui.unmount()
+
+  const again = await $.ui.mount({ plugin: 'game-save-point', surface: 'terminal', ...BAND })
+  expect((await again.drawn()) as unknown).toMatchObject({ type: 'Text', children: ['engine'] })
+})
+
+test('the first prompt closes the title screen', async ($, on) => {
+  world(on, { turns: 0, store: { slots: { '/proj': [save('new', NOW - 1000, 'newest')] } } })
+  await start($)
+  await $.prompt.submit({ text: 'hi', wait: false, origin: { kind: 'composer' } })
+  const ui = await $.ui.mount({ plugin: 'game-save-point', surface: 'terminal', ...BAND })
+  expect((await ui.drawn()) as unknown).toMatchObject({ type: 'Text', children: ['engine'] })
+})
+
+test('/load takes a password, from any project', async ($, on) => {
+  const { filled } = world(on, { store: { slots: { '/other': [{ ...save('다른 일', NOW - 1000, 'other resume'), code: 'SP03-ABCD-MOON' }] } } })
+  await start($)
+  const out = await $.command.run(run('load', 'sp03-abcd-moon'))
+  expect(out.text).toContain('◆ SAVE POINT · 다른 일')
+  expect(filled).toEqual(['other resume'])
+  expect((await $.command.run(run('load', 'SP09-ZZZZ-MOON'))).text).toContain('No save has the password SP09-ZZZZ-MOON')
 })
