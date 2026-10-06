@@ -1,0 +1,39 @@
+{
+  "name": "game-map",
+  "displayName": "GAME MODE · Map",
+  "version": "0.2.0",
+  "description": "A status line with the branch and the play time: MAP <branch> · 플레이 h:mm, with ⚠ on a protected branch such as main",
+  "author": {
+    "name": "Reason of Moon",
+    "url": "https://github.com/Reasonofmoon"
+  },
+  "homepage": "https://github.com/Reasonofmoon/bitgame-mods/tree/main/plugins/game-map",
+  "repository": "https://github.com/Reasonofmoon/bitgame-mods",
+  "license": "MIT",
+  "keywords": [
+    "mod",
+    "game-mode",
+    "git",
+    "branch",
+    "status-line"
+  ],
+  "userConfig": {
+    "intensity": {
+      "type": "string",
+      "title": "Intensity",
+      "description": "off shows nothing; casual shows the branch and the play time; hardcore adds the number of changed files",
+      "default": "casual",
+      "options": [
+        "off",
+        "casual",
+        "hardcore"
+      ]
+    },
+    "protectedBranches": {
+      "type": "string",
+      "title": "Protected branches",
+      "description": "Comma-separated names or patterns (release/*) marked with ⚠",
+      "default": "main,master,production,release/*"
+    }
+  }
+}

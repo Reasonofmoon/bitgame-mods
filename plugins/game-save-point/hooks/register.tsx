@@ -167,6 +167,14 @@ export const register: Register = (on, options) => {
   })
 
   // TITLE: CONTINUE · NEW GAME · LOAD and the last three slots, above whatever else the band holds.
+  // While the resume prompt waits in the prompt box, the hint line says how to take it.
+  on('ui.render', { component: 'PromptHint' }, async ($, e, next) => {
+    if (intensity === 'off' || e.props.isDraft || e.props.isWorking || !(await read($, title)).isShown) return next(e)
+    const mine = '▸ Tab 이어하기 · /load'
+    const tail = e.props.tail === undefined || e.props.tail === '' ? mine : `${e.props.tail} · ${mine}`
+    return next({ ...e, props: { ...e.props, tail } })
+  })
+
   on('ui.render', { component: 'AbovePrompt' }, async ($, e, next) => {
     if (intensity === 'off' || e.props.hasSurvey) return next(e)
     const t = await read($, title)

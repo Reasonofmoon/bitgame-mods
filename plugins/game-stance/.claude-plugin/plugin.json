@@ -1,0 +1,46 @@
+{
+  "name": "game-stance",
+  "displayName": "GAME MODE · Stance",
+  "version": "0.2.0",
+  "description": "The permission mode as a colored badge at the right of the prompt footer: 기본, 자동 승인, 계획, 자동 판정, 우회, 묻지 않음; follows shift+tab",
+  "author": {
+    "name": "Reason of Moon",
+    "url": "https://github.com/Reasonofmoon"
+  },
+  "homepage": "https://github.com/Reasonofmoon/bitgame-mods/tree/main/plugins/game-stance",
+  "repository": "https://github.com/Reasonofmoon/bitgame-mods",
+  "license": "MIT",
+  "keywords": [
+    "mod",
+    "game-mode",
+    "permissions",
+    "footer",
+    "mode"
+  ],
+  "types": "./types/index.d.ts",
+  "userConfig": {
+    "intensity": {
+      "type": "string",
+      "title": "Intensity",
+      "description": "off leaves the footer to the engine; casual draws the badge; hardcore adds what the mode lets Claude do",
+      "default": "casual",
+      "options": [
+        "off",
+        "casual",
+        "hardcore"
+      ]
+    },
+    "palette": {
+      "type": "string",
+      "title": "Palette",
+      "description": "nes, gameboy and amber are made for dark terminals; theme follows your Claude Code theme (use it on a light background)",
+      "default": "nes",
+      "options": [
+        "nes",
+        "gameboy",
+        "amber",
+        "theme"
+      ]
+    }
+  }
+}

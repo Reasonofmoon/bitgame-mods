@@ -72,11 +72,13 @@ function world(on: On, opts: Opts = {}) {
     return { value: { isCopied: true as const } }
   })
   on('tool.call', () => ({ result: { stdout: 'ok', stderr: '', interrupted: false } }))
+  const tails: (string | undefined)[] = []
   on('ui.render', ($, e) => {
+    if (e.component === 'PromptHint') tails.push(e.props.tail)
     const { Text } = $.ui.resolve(e)
     return h(Text, { dimColor: true }, 'engine') as RenderElement
   })
-  return { clock, statuses, suggested, filled, completions, copied }
+  return { clock, statuses, suggested, filled, completions, copied, tails }
 }
 
 async function start($: Engine) {
@@ -280,12 +282,20 @@ test('LOAD shows a button per slot; NEW GAME and the first prompt close the titl
   expect((await again.drawn()) as unknown).toMatchObject({ type: 'Text', children: ['engine'] })
 })
 
-test('the first prompt closes the title screen', async ($, on) => {
-  world(on, { turns: 0, store: { slots: { '/proj': [save('new', NOW - 1000, 'newest')] } } })
+test('the first prompt closes the title screen; until then the hint line says Tab', async ($, on) => {
+  const { tails } = world(on, { turns: 0, store: { slots: { '/proj': [save('new', NOW - 1000, 'newest')] } } })
   await start($)
+  const hint = async (isDraft: boolean) => {
+    const line = await $.ui.mount({ plugin: 'game-save-point', surface: 'terminal', component: 'PromptHint', props: { isDraft, isWorking: false, hint: '? for shortcuts' } })
+    await line.unmount()
+    return tails[tails.length - 1]
+  }
+  expect(await hint(false)).toBe('▸ Tab 이어하기 · /load')
+  expect(await hint(true)).toBeUndefined()
   await $.prompt.submit({ text: 'hi', wait: false, origin: { kind: 'composer' } })
   const ui = await $.ui.mount({ plugin: 'game-save-point', surface: 'terminal', ...BAND })
   expect((await ui.drawn()) as unknown).toMatchObject({ type: 'Text', children: ['engine'] })
+  expect(await hint(false)).toBeUndefined()
 })
 
 test('/load takes a password, from any project', async ($, on) => {

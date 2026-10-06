@@ -1,0 +1,52 @@
+{
+  "name": "game-casting",
+  "displayName": "GAME MODE · Casting",
+  "version": "0.2.0",
+  "description": "The spinner while a turn runs: CASTING · what runs now · 행동 n · G +the turn's cost so far, with the engine's own time and tokens after it",
+  "author": {
+    "name": "Reason of Moon",
+    "url": "https://github.com/Reasonofmoon"
+  },
+  "homepage": "https://github.com/Reasonofmoon/bitgame-mods/tree/main/plugins/game-casting",
+  "repository": "https://github.com/Reasonofmoon/bitgame-mods",
+  "license": "MIT",
+  "keywords": [
+    "mod",
+    "game-mode",
+    "spinner",
+    "progress",
+    "cost"
+  ],
+  "types": "./types/index.d.ts",
+  "userConfig": {
+    "intensity": {
+      "type": "string",
+      "title": "Intensity",
+      "description": "off leaves the spinner to the engine; casual names the running call, the actions and the cost; hardcore adds how many calls run at once",
+      "default": "casual",
+      "options": [
+        "off",
+        "casual",
+        "hardcore"
+      ]
+    },
+    "currency": {
+      "type": "string",
+      "title": "Currency",
+      "description": "krw converts the cost ledger with krwPerUsd; usd shows it as kept",
+      "default": "krw",
+      "options": [
+        "usd",
+        "krw"
+      ]
+    },
+    "krwPerUsd": {
+      "type": "number",
+      "title": "KRW per USD",
+      "description": "Rate used when currency is krw",
+      "default": 1400,
+      "min": 1,
+      "max": 100000
+    }
+  }
+}
