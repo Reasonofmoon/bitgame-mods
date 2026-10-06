@@ -1,7 +1,7 @@
 {
   "name": "game-earcons",
   "displayName": "GAME MODE · Earcons",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "description": "8-bit sound cues on macOS, Windows and Linux: a permission prompt or question waiting on you, a long turn finished, an error, a guard refusing a call, a save",
   "author": {
     "name": "Reason of Moon",

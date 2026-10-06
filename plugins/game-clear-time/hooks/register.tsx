@@ -14,7 +14,7 @@ const HISTORY = 20
 const KEEP = 100
 const MATCH_MS = 1500
 
-const turn = atom({ plugin: 'game-clear-time', key: 'turn' } as const, { actions: 0, startUsd: null, isOpen: false } as TurnNow)
+const turn = atom({ plugin: 'game-clear-time', key: 'turn' } as const, { actions: 0, startUsd: null, isOpen: false, seen: [] } as TurnNow)
 const records = atom({ plugin: 'game-clear-time', key: 'records' } as const, [] as ClearRecord[])
 
 export const register: Register = (on, options) => {
@@ -32,12 +32,23 @@ export const register: Register = (on, options) => {
 
   on('turn.start', async ($, e, next) => {
     const usage = await $.session.usage().catch(() => undefined)
-    await update($, turn, () => ({ actions: 0, startUsd: usage?.cost?.usd ?? null, isOpen: true }))
+    await update($, turn, () => ({ actions: 0, startUsd: usage?.cost?.usd ?? null, isOpen: true, seen: [] }))
     return next(e)
   }).catch(($, e, next) => next(e))
 
+  // A call counts once, from the model's tool_use row (where a refused call shows too, whichever
+  // plugin refused it) or from tool.call, whichever comes first.
+  on('session.append', async ($, e, next) => {
+    const stored = await next(e)
+    if (e.agentId === undefined && e.door === 'response') {
+      const ids = usesOf(e.message.content)
+      if (ids.length > 0) await update($, turn, t => counted(t, ids)).catch(() => undefined)
+    }
+    return stored
+  }).catch(($, e, next) => next(e))
+
   on('tool.call', async ($, e, next) => {
-    if (e.agentId === undefined) await update($, turn, t => ({ ...t, actions: t.actions + 1 }))
+    if (e.agentId === undefined) await update($, turn, t => counted(t, [e.tool_use_id]))
     return next(e)
   }).catch(($, e, next) => next(e))
 
@@ -109,6 +120,16 @@ export const register: Register = (on, options) => {
       ].join('\n'),
     }
   })
+}
+
+function counted(t: TurnNow, ids: readonly string[]): TurnNow {
+  const seen = t.seen ?? []
+  const fresh = ids.filter(id => !seen.includes(id))
+  return fresh.length === 0 ? t : { ...t, actions: t.actions + fresh.length, seen: [...seen, ...fresh].slice(-500) }
+}
+
+function usesOf(content: readonly unknown[]): string[] {
+  return content.flatMap(b => (b !== null && typeof b === 'object' && (b as { type?: unknown }).type === 'tool_use' && typeof (b as { id?: unknown }).id === 'string' ? [(b as { id: string }).id] : []))
 }
 
 export function medianOf(values: readonly number[]): number {

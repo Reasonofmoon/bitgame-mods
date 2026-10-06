@@ -1,7 +1,7 @@
 {
   "name": "game-hud",
   "displayName": "GAME MODE · HUD",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "8-bit HUD window above the prompt: LV/EXP, HP = context left, MP = plan usage left, G = session cost, a status row (HP LOW!, REST, SAVED, LEVEL UP!) with rest and save buttons",
   "author": {
     "name": "Reason of Moon",

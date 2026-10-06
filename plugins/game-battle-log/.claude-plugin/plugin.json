@@ -1,7 +1,7 @@
 {
   "name": "game-battle-log",
   "displayName": "GAME MODE · Battle Log",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "description": "Tool rows as an 8-bit battle log: a TURN header on each turn's first row, HIT, CRIT with +added −removed lines, MISS with the lines that say what failed, COMBO ×n and BREAK, each guard's own verdict (TRAP!, BARRIER!, LOOP!), and SUMMON on the run-in-background pill",
   "author": {
     "name": "Reason of Moon",

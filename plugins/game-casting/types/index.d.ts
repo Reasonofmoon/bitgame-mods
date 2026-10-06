@@ -15,6 +15,8 @@ export type Cast = {
   usd: number | null
   /** Calls running now, oldest first. */
   running: Running[]
+  /** The calls counted this turn, by tool_use_id: each is counted once, however it was seen. */
+  seen: string[]
 }
 
 declare module 'claude-code' {

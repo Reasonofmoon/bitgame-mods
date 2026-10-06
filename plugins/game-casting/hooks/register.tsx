@@ -10,7 +10,7 @@ import { intensityOf, money } from './palette'
 //   ✻ CASTING · BASH npm test… · 행동 3 · G +₩120  (12s · ↓ 300 tokens)
 // Only the words are rewritten, so the engine's own time and tokens stay after them.
 
-const START: Cast = { actions: 0, startUsd: null, usd: null, running: [] }
+const START: Cast = { actions: 0, startUsd: null, usd: null, running: [], seen: [] }
 const cast = atom({ plugin: 'game-casting', key: 'cast' } as const, START)
 
 // What the turn is doing while no call runs, by the spinner's mode.
@@ -47,7 +47,7 @@ export const register: Register = (on, options) => {
   on('turn.start', async ($, e, next) => {
     const usage = await $.session.usage().catch(() => undefined)
     const usd = usage?.cost?.usd ?? null
-    await update($, cast, c => ({ actions: 0, startUsd: usd ?? c.usd, usd: usd ?? c.usd, running: [] }))
+    await update($, cast, c => ({ actions: 0, startUsd: usd ?? c.usd, usd: usd ?? c.usd, running: [], seen: [] }))
     return next(e)
   }).catch(($, e, next) => next(e))
 
@@ -57,11 +57,22 @@ export const register: Register = (on, options) => {
     return next(e)
   }).catch(($, e, next) => next(e))
 
+  // A call counts once, from the model's tool_use row (where a refused call shows too, whichever
+  // plugin refused it) or from tool.call, whichever comes first.
+  on('session.append', async ($, e, next) => {
+    const stored = await next(e)
+    if (e.agentId === undefined && e.door === 'response') {
+      const ids = usesOf(e.message.content)
+      if (ids.length > 0) await update($, cast, c => counted(c, ids)).catch(() => undefined)
+    }
+    return stored
+  }).catch(($, e, next) => next(e))
+
   on('tool.call', async ($, e, next) => {
     if (e.agentId !== undefined) return next(e)
     const id = e.tool_use_id
     const text = castOf(String(e.tool), e)
-    await update($, cast, c => ({ ...c, actions: c.actions + 1, running: [...c.running, { id, text }] }))
+    await update($, cast, c => ({ ...counted(c, [id]), running: [...c.running, { id, text }] }))
     try {
       return await next(e)
     } finally {
@@ -75,6 +86,16 @@ export const register: Register = (on, options) => {
     const c = await read($, cast)
     return next({ ...e, props: { ...e.props, message: castLine(c, e.props.mode, intensity === 'hardcore', currency, krwPerUsd), suffix: '' } })
   })
+}
+
+function counted(c: Cast, ids: readonly string[]): Cast {
+  const seen = c.seen ?? []
+  const fresh = ids.filter(id => !seen.includes(id))
+  return fresh.length === 0 ? c : { ...c, actions: c.actions + fresh.length, seen: [...seen, ...fresh].slice(-500) }
+}
+
+function usesOf(content: readonly unknown[]): string[] {
+  return content.flatMap(b => (b !== null && typeof b === 'object' && (b as { type?: unknown }).type === 'tool_use' && typeof (b as { id?: unknown }).id === 'string' ? [(b as { id: string }).id] : []))
 }
 
 /** `CASTING · BASH npm test… · 행동 3 · G +₩120` */

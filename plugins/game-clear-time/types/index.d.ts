@@ -6,6 +6,8 @@ export type TurnNow = {
   startUsd: number | null
   /** A turn is running (its clear line is not written yet). */
   isOpen: boolean
+  /** The calls counted this turn, by tool_use_id: each is counted once, however it was seen. */
+  seen: string[]
 }
 
 /** One finished turn, as its clear line shows it. */

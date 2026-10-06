@@ -5,7 +5,7 @@ import { intensityOf, paletteOf } from './palette'
 // GAME MODE · HEDGE MARK
 //
 // Claude's replies draw in a window headed CLAUDE, and a sentence that guesses
-// (아마, 추정, ~것 같다, probably, might …) is marked [?], so what is checked and what is a
+// (아마, 추정, 짐작, ~것 같다, ~라고 본다, probably, might …) is marked [?], so what is checked and what is a
 // guess read apart:
 //   ╭─────────────────────────────────────────────╮
 //   │ CLAUDE                                        │
@@ -14,7 +14,7 @@ import { intensityOf, paletteOf } from './palette'
 //   │ ? 추정 1곳 · 확인되기 전까지는 가설              │
 // Code blocks are left as they are. The stored reply is unchanged (ctrl+o shows it).
 
-const KOREAN = /아마(?:도)?|추정|추측|것\s?같(?:습니다|다|아요|네요|은데)|(?<![과와])\s같(?:습니다|아요|네요)|듯(?:합니다|하다|해요|싶)|수도\s?있|가능성이\s?(?:있|높|크)|(?:로|으로|처럼)\s?보입니다|확실하지\s?않|확실치\s?않|모르겠/
+const KOREAN = /아마(?:도)?|추정|추측|짐작|(?:라고|으로|로|고)\s?(?:본다|봅니다|봐요)|것\s?같(?:습니다|다|아요|네요|은데)|(?<![과와])\s같(?:습니다|아요|네요)|듯(?:합니다|하다|해요|싶)|수도\s?있|(?:았|었|였|됐|했|겼|졌)을\s?수\s?(?:도\s?)?있|일\s?수\s?(?:도\s?)?있|가능성(?:이|도)\s?(?:있|높|크)|(?:로|으로|처럼)\s?보입니다|확실하지\s?않|확실치\s?않|모르겠/
 const ENGLISH = /\b(?:probably|likely|perhaps|maybe|might|presumably|seems?|appears? to|i think|i believe|i guess|i suspect|not sure|could be)\b/i
 const MARK = '**[?]** '
 

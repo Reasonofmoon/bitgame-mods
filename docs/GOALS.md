@@ -64,3 +64,7 @@ For every element: `claude plugin validate --strict` passes, its tests pass (`cl
 3. P3 (spell check, hedge mark, answer memory, item get, equip, achievement)
 4. One recorded session with all 21; fixes
 5. Docs, versions (0.2.0), marketplace, PR
+
+## Status (2026-10-07)
+
+All 21 met. Evidence: `bash scripts/check.sh` (strict validate of the marketplace and 21 plugins, palette copies equal, 152 tests) and `tsc --strict` clean for each plugin; a recorded session with all 21 enabled ([`assets/game-mode-0.2.0.mp4`](assets/game-mode-0.2.0.mp4), stills in the README), and each element checked live while it was built. Not reachable in the recording, covered by tests: `HP LOW!` and `/compact 휴식` (needs 25% context left), `제때 휴식`, `안전 운전`, Windows and Linux sound (the Linux path was run in a session with a logging `paplay`; the PowerShell script was run on PowerShell 7 up to the player, which only Windows has).

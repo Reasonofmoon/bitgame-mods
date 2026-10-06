@@ -1,5 +1,41 @@
 # Changelog
 
+## 0.2.0 — 2026-10-07
+
+Every element of the four design boards (save screen, title screen, GAME MODE screen, MOD EQUIPMENT LIST) as a mod that does a job: the seven mods upgraded and fourteen new ones. Acceptance criteria per mod: [`docs/GOALS.md`](docs/GOALS.md). All 21 plugins and the marketplace are 0.2.0.
+
+### P1 · the seven, upgraded
+- **game-hud**: a framed window in two rows: `LV`, an `EXP` bar to the next level, `HP`, `MP`, `G` (₩ by default); a state tag (`READY`, `HP LOW!`, `REST`, `SAVED`, `LEVEL UP!`) with a message and the `휴식 /compact` · `세이브 /save` buttons. Another plugin's band stays above it.
+- **game-battle-log**: `⚔ BATTLE LOG · TURN n` on each turn's first row; `COMBO ×n` from three clean calls and `COMBO ×n → BREAK` on the failure that ends one; `+added −removed` on edits; each guard's verdict (`TRAP!`, `BARRIER!`, `LOOP!`); `SUMMON` on the run-in-background pill. Calls are counted from the rows the session keeps, so a refusal by a guard seated above it still counts.
+- **game-save-point**: the save screen as on the board (header with slot, day, LV/EXP and CTX bars; `CLEARED` with `+EXP`; `QUEST LOG` with `MAIN`/`SIDE`; `? 어떻게 하시겠습니까?`; `INVENTORY` tiles; a `PASSWORD` code with the resume prompt copied to the clipboard); `/load <password>` from any project; a title screen (`CONTINUE` · `NEW GAME` · `LOAD`, three slot cards, `PRESS START`) at the start of a session in a folder with saves, closed by a choice or the first prompt; `Tab 이어하기 · /load` on the hint line meanwhile.
+- **game-earcons**: plays on Windows (PowerShell `SoundPlayer`, the WAV scaled to the volume and passed on stdin) and Linux (`paplay` at the volume, else `aplay`) as well as macOS.
+- **game-trap-guard**, **game-barrier**, **game-loop-breaker**: unchanged behavior; their refusals are named in the battle log.
+
+### P2 · keeping track (new)
+- **game-stance**: the permission mode as a colored badge at the right of the footer (`기본`, `자동 승인`, `계획`, `자동 판정`, `우회`, `묻지 않음`), following shift+tab.
+- **game-casting**: the spinner reads `CASTING · <running call> · 행동 n · G +<turn cost>`, the engine's time and tokens after it.
+- **game-clear-time**: `✦ CLEAR m:ss · 행동 n · 이번 턴 ₩x · 평소보다 ±m:ss` against the median of the project's last 20 turns; `/clear-time`.
+- **game-party**: `/party` pane of subagents (`ACTIVE`/`CLEAR`/`FAIL`, a bar of tool calls, the job); opens itself when the first subagent starts on a terminal 144 columns wide or more.
+- **game-quest**: `/quest` pane of the task list (`✓` `▶` `·`, `BOSS`, `ALL CLEAR!`), kept for the project across `/compact` and sessions.
+- **game-minimap**: `/minimap` pane of the project's files by folder: edited, read, unexplored, read counts from three, the most re-read file.
+- **game-hint**: `▸ ESC 후퇴`, `▸ /compact 휴식`, `▸ 오류부터 읽기`, `▸ /save 세이브` on the hint line.
+- **game-map**: `MAP <branch> · 플레이 h:mm` status line, `⚠ 보호` on protected branches; `/map`.
+
+### P3 · habits (new)
+- **game-spell-check**: vague words underlined while typing and secrets in red, with `⚠ '적당히' — 무엇이 되면 끝인지 적어라` on the hint line; a vague prompt with no done condition carries a note asking Claude to state one first; your messages draw as `P1 · <name>` with `⚑ 완료 조건`.
+- **game-answer-memory**: `★ 지난번 선택` on the option chosen last time when Claude asks the same question in the project.
+- **game-hedge-mark**: replies in a `CLAUDE` window, guessing sentences marked `[?]`, footer `? 추정 n곳 · 확인되기 전까지는 가설`.
+- **game-item-get**: `✦ ITEM GET! <path> · 새 파일 n줄` on the row of a file Claude created; `/inventory`.
+- **game-equip**: `EQUIP 모델 <model> 장착 · 교체는 /model` at the start, on the engine's model notice, and whenever the model changes.
+- **game-achievement**: first save, 10 safe commits, comeback, 10-call combo, a rest before HP 10%; toasts and `/achievements`.
+
+### Shared
+- `hooks/palette.ts` in every plugin that draws (palettes, bars, windows, clock, money); `scripts/check.sh` fails when the copies differ.
+
+### Evidence
+- `claude plugin validate --strict` ✓ ×21 + marketplace · `claude plugin test` 152/152 ✓ · `tsc --strict` clean ×21
+- One recorded interactive session with all 21 (`docs/assets/game-mode-0.2.0.mp4`); each element was also checked live while it was built.
+
 ## 0.1.1 — 2026-10-06
 
 Fixes for five bugs found in a recorded interactive session with all seven mods, and Windows paths for the guards (game-hud stays 0.1.0).

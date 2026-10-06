@@ -1,66 +1,301 @@
 {
   "name": "bitgame-mods",
-  "owner": { "name": "Reason of Moon", "url": "https://github.com/Reasonofmoon" },
+  "owner": {
+    "name": "Reason of Moon",
+    "url": "https://github.com/Reasonofmoon"
+  },
   "metadata": {
-    "description": "GAME MODE for Claude Code: an 8-bit look where every piece does a job (HUD, battle log, three guards, save point, sound cues)",
-    "version": "0.1.1"
+    "description": "GAME MODE for Claude Code: 21 mods for an 8-bit look where every piece does a job (HUD, battle log, three guards, save point and title screen, sound cues, stance, casting, clear time, party, quest, minimap, hint, map, spell check, answer memory, hedge mark, item get, equip, achievements)",
+    "version": "0.2.0"
   },
   "plugins": [
     {
       "name": "game-hud",
       "source": "./plugins/game-hud",
-      "description": "8-bit HUD above the prompt: HP = context left, MP = plan usage left, G = session cost, rest/save buttons when HP runs low",
-      "version": "0.1.0",
+      "description": "8-bit HUD window above the prompt: LV/EXP, HP = context left, MP = plan usage left, G = session cost, a status row (HP LOW!, REST, SAVED, LEVEL UP!) with rest and save buttons",
+      "version": "0.2.0",
       "category": "development",
-      "keywords": ["mod", "game-mode", "hud", "context", "cost"]
+      "keywords": [
+        "mod",
+        "game-mode",
+        "hud",
+        "context",
+        "cost"
+      ]
     },
     {
       "name": "game-battle-log",
       "source": "./plugins/game-battle-log",
-      "description": "Tool rows as a battle log: HIT, CRIT, MISS with the lines that say what failed, BLOCK when a guard refused; failed groups unfold",
-      "version": "0.1.1",
+      "description": "Tool rows as an 8-bit battle log: a TURN header on each turn's first row, HIT, CRIT with +added −removed lines, MISS with the lines that say what failed, COMBO ×n and BREAK, each guard's own verdict (TRAP!, BARRIER!, LOOP!), and SUMMON on the run-in-background pill",
+      "version": "0.2.0",
       "category": "development",
-      "keywords": ["mod", "game-mode", "transcript", "tool-calls"]
+      "keywords": [
+        "mod",
+        "game-mode",
+        "transcript",
+        "tool-calls"
+      ]
     },
     {
       "name": "game-trap-guard",
       "source": "./plugins/game-trap-guard",
-      "description": "Stops tool calls that would leak a secret: literal keys in commands or source files, cat .env, echo $API_KEY, reading key files",
-      "version": "0.1.1",
+      "description": "Stops tool calls that would leak a secret: literal keys in commands or source files, cat .env / echo $API_KEY, reading key files into the conversation",
+      "version": "0.2.0",
       "category": "development",
-      "keywords": ["mod", "game-mode", "security", "secrets", "guard"]
+      "keywords": [
+        "mod",
+        "game-mode",
+        "security",
+        "secrets",
+        "guard"
+      ]
     },
     {
       "name": "game-barrier",
       "source": "./plugins/game-barrier",
-      "description": "Stops irreversible calls: force-push to main, reset --hard, rm -r outside the project, publishing, DROP TABLE, edits outside the project",
-      "version": "0.1.1",
+      "description": "Stops irreversible calls: force-push to main, reset --hard, rm -r outside the project, publishing, DROP TABLE, and file edits outside the project",
+      "version": "0.2.0",
       "category": "development",
-      "keywords": ["mod", "game-mode", "safety", "git", "guard"]
+      "keywords": [
+        "mod",
+        "game-mode",
+        "safety",
+        "git",
+        "guard"
+      ]
     },
     {
       "name": "game-loop-breaker",
       "source": "./plugins/game-loop-breaker",
-      "description": "Stops the same call failing the same way again and again: warns at LOOP 2/3, blocks once sealed, lifts after a change",
-      "version": "0.1.1",
+      "description": "Stops the same call failing the same way again and again: warns at LOOP 2/3, blocks the next identical run once sealed, lifts after a change or a new message",
+      "version": "0.2.0",
       "category": "development",
-      "keywords": ["mod", "game-mode", "loops", "retries", "guard"]
+      "keywords": [
+        "mod",
+        "game-mode",
+        "loops",
+        "retries",
+        "guard"
+      ]
     },
     {
       "name": "game-save-point",
       "source": "./plugins/game-save-point",
-      "description": "/save writes an RPG save screen of the session; the next session offers its resume prompt on Tab",
-      "version": "0.1.1",
+      "description": "/save writes an 8-bit save screen (cleared, quest log, decisions, inventory, a password with the resume prompt copied); /load <password>; a title screen with CONTINUE, NEW GAME and LOAD when a session starts in a folder with saves",
+      "version": "0.2.0",
       "category": "development",
-      "keywords": ["mod", "game-mode", "handoff", "resume", "summary"]
+      "keywords": [
+        "mod",
+        "game-mode",
+        "handoff",
+        "resume",
+        "summary"
+      ]
     },
     {
       "name": "game-earcons",
       "source": "./plugins/game-earcons",
-      "description": "8-bit sound cues: a prompt or question waiting on you, a long turn done, an error, a guard refusing, a save (macOS)",
-      "version": "0.1.1",
+      "description": "8-bit sound cues on macOS, Windows and Linux: a permission prompt or question waiting on you, a long turn finished, an error, a guard refusing a call, a save",
+      "version": "0.2.0",
       "category": "development",
-      "keywords": ["mod", "game-mode", "sound", "notifications"]
+      "keywords": [
+        "mod",
+        "game-mode",
+        "sound",
+        "notifications"
+      ]
+    },
+    {
+      "name": "game-stance",
+      "source": "./plugins/game-stance",
+      "description": "The permission mode as a colored badge at the right of the prompt footer: 기본, 자동 승인, 계획, 자동 판정, 우회, 묻지 않음; follows shift+tab",
+      "version": "0.2.0",
+      "category": "development",
+      "keywords": [
+        "mod",
+        "game-mode",
+        "permissions",
+        "footer",
+        "mode"
+      ]
+    },
+    {
+      "name": "game-casting",
+      "source": "./plugins/game-casting",
+      "description": "The spinner while a turn runs: CASTING · what runs now · 행동 n · G +the turn's cost so far, with the engine's own time and tokens after it",
+      "version": "0.2.0",
+      "category": "development",
+      "keywords": [
+        "mod",
+        "game-mode",
+        "spinner",
+        "progress",
+        "cost"
+      ]
+    },
+    {
+      "name": "game-clear-time",
+      "source": "./plugins/game-clear-time",
+      "description": "A turn ends with CLEAR m:ss · 행동 n · 이번 턴 ₩x · 평소보다 ±m:ss, against the median of the project's last 20 turns",
+      "version": "0.2.0",
+      "category": "development",
+      "keywords": [
+        "mod",
+        "game-mode",
+        "turn",
+        "duration",
+        "cost"
+      ]
+    },
+    {
+      "name": "game-party",
+      "source": "./plugins/game-party",
+      "description": "/party: each subagent of the session with ACTIVE, CLEAR or FAIL, a bar of its tool calls and its job; opens by itself when one starts on a wide terminal",
+      "version": "0.2.0",
+      "category": "development",
+      "keywords": [
+        "mod",
+        "game-mode",
+        "subagents",
+        "agents",
+        "pane"
+      ]
+    },
+    {
+      "name": "game-quest",
+      "source": "./plugins/game-quest",
+      "description": "/quest: the task list as a quest log (✓ done, ▶ in progress, · to do, the last one the BOSS), kept across /compact and into the next session in the same project",
+      "version": "0.2.0",
+      "category": "development",
+      "keywords": [
+        "mod",
+        "game-mode",
+        "tasks",
+        "todo",
+        "pane"
+      ]
+    },
+    {
+      "name": "game-minimap",
+      "source": "./plugins/game-minimap",
+      "description": "/minimap: a grid of the project's files — edited, read, unexplored — with read counts on files read 3+ times and the most re-read file named",
+      "version": "0.2.0",
+      "category": "development",
+      "keywords": [
+        "mod",
+        "game-mode",
+        "files",
+        "exploration",
+        "pane"
+      ]
+    },
+    {
+      "name": "game-hint",
+      "source": "./plugins/game-hint",
+      "description": "The hint line under the prompt adds what to press now: ESC 후퇴 while working, /compact 휴식 at low HP, 오류부터 읽기 after repeated failures, /save 세이브 when a save is due",
+      "version": "0.2.0",
+      "category": "development",
+      "keywords": [
+        "mod",
+        "game-mode",
+        "hints",
+        "footer",
+        "context"
+      ]
+    },
+    {
+      "name": "game-map",
+      "source": "./plugins/game-map",
+      "description": "A status line with the branch and the play time: MAP <branch> · 플레이 h:mm, with ⚠ on a protected branch such as main",
+      "version": "0.2.0",
+      "category": "development",
+      "keywords": [
+        "mod",
+        "game-mode",
+        "git",
+        "branch",
+        "status-line"
+      ]
+    },
+    {
+      "name": "game-spell-check",
+      "source": "./plugins/game-spell-check",
+      "description": "Vague words (적당히, 알아서, 대충 …) underlined while you type and secrets in red; a vague prompt with no done condition asks Claude to state one first; your messages drawn as P1 with the done condition",
+      "version": "0.2.0",
+      "category": "development",
+      "keywords": [
+        "mod",
+        "game-mode",
+        "prompt",
+        "clarity",
+        "secrets"
+      ]
+    },
+    {
+      "name": "game-answer-memory",
+      "source": "./plugins/game-answer-memory",
+      "description": "When Claude asks a question it asked before in this project, the option you chose last time is marked ★ 지난번 선택",
+      "version": "0.2.0",
+      "category": "development",
+      "keywords": [
+        "mod",
+        "game-mode",
+        "questions",
+        "memory"
+      ]
+    },
+    {
+      "name": "game-hedge-mark",
+      "source": "./plugins/game-hedge-mark",
+      "description": "Claude's replies in a window headed CLAUDE; sentences that guess (아마, 추정, probably, might …) marked [?], with a footer counting them",
+      "version": "0.2.0",
+      "category": "development",
+      "keywords": [
+        "mod",
+        "game-mode",
+        "replies",
+        "uncertainty",
+        "transcript"
+      ]
+    },
+    {
+      "name": "game-item-get",
+      "source": "./plugins/game-item-get",
+      "description": "A file Claude creates shows ITEM GET! <path>; /inventory lists the files created and changed this session with their line counts",
+      "version": "0.2.0",
+      "category": "development",
+      "keywords": [
+        "mod",
+        "game-mode",
+        "files",
+        "inventory",
+        "transcript"
+      ]
+    },
+    {
+      "name": "game-equip",
+      "source": "./plugins/game-equip",
+      "description": "The model as equipment: EQUIP 모델 <model> 장착 · 교체는 /model at the start, in place of the model notice, and again when the model changes",
+      "version": "0.2.0",
+      "category": "development",
+      "keywords": [
+        "mod",
+        "game-mode",
+        "model"
+      ]
+    },
+    {
+      "name": "game-achievement",
+      "source": "./plugins/game-achievement",
+      "description": "★ ACHIEVEMENT toasts for milestones: first save, 10 safe commits, a comeback, a 10-call combo, a rest before HP 10%; /achievements lists them",
+      "version": "0.2.0",
+      "category": "development",
+      "keywords": [
+        "mod",
+        "game-mode",
+        "achievements",
+        "milestones"
+      ]
     }
   ]
 }

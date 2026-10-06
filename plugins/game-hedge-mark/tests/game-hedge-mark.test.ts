@@ -57,4 +57,8 @@ test('marking: sentences, lists and code', () => {
   expect(markHedges('다음과 같이 보입니다.').count).toBe(0)
   expect(markHedges('결과는 다음과 같습니다.').count).toBe(0)
   expect(markHedges('원인으로 보입니다.').count).toBe(1)
+  expect(markHedges('짐작: 원인이 이 단위 불일치 하나뿐이라고 본다.').count).toBe(1)
+  expect(markHedges('테스트로 본 결과 통과했다.').count).toBe(0)
+  expect(markHedges('토큰이 너무 일찍 만료됐을 수 있습니다. 설정 문제일 수도 있습니다. 경쟁 조건 가능성도 있습니다.').count).toBe(3)
+  expect(markHedges('이 함수는 토큰을 갱신할 수 있습니다.').count).toBe(0)
 })
