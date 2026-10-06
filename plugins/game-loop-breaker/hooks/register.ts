@@ -157,7 +157,7 @@ export function keyOf(tool: string, input: Record<string, unknown>): Key | undef
     const path = str(input, 'file_path') ?? str(input, 'notebook_path')
     const id = fileKey(tool, path)
     if (id === undefined || path === undefined) return undefined
-    return { id, label: `${tool.toUpperCase()} ${path.split('/').pop()}`, kind: 'file' }
+    return { id, label: `${tool.toUpperCase()} ${path.split(/[\\/]/).pop()}`, kind: 'file' }
   }
   if (tool === 'WebFetch') {
     const url = str(input, 'url')

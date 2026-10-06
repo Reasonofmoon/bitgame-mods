@@ -170,3 +170,85 @@ test('/barrier pass is yours to type and lasts one call', async ($, on) => {
   expect(await bash($, 'git reset --hard')).toContain('game-barrier blocked this call')
   expect(ran).toEqual(['git reset --hard'])
 })
+
+// A Windows session: native paths from the engine, Git Bash spellings in commands.
+function winWorld(on: On, opts: { head?: string; root?: string } = {}) {
+  mock.store(on)
+  mock.clock(on, { now: 1_700_000_000_000 })
+  const ran: string[] = []
+  const logs: string[] = []
+  const root = opts.root ?? 'C:\\Users\\me\\proj'
+  const env: Record<string, string> = {
+    OS: 'Windows_NT',
+    USERPROFILE: 'C:\\Users\\me',
+    TEMP: 'C:\\Users\\me\\AppData\\Local\\Temp',
+    TMP: 'C:\\Users\\me\\AppData\\Local\\Temp',
+  }
+  on('session.start', (_, e) => ({ cwd: e.cwd }))
+  on('session.root', () => ({ value: root }))
+  on('session.cwd', () => ({ value: root }))
+  on('env.get', (_, e) => ({ value: env[e.name] }))
+  on('command.register', (_, e) => ({ value: { command: e.name } }))
+  on('ui.toast', () => ({ value: undefined }))
+  on('ui.log', (_, e) => {
+    logs.push(e.text)
+    return { value: undefined }
+  })
+  on('fs.exists', () => ({ value: true }))
+  on('fs.stat', (_, e) => ({ value: { kind: 'dir' as const, size: 0, mtimeMs: 0, isLink: false, realPath: e.path } }))
+  on('fs.read', (_, e) => {
+    // The test runs on Linux, where the engine reads `c:/…` as relative: match the end.
+    if (e.path.endsWith('c:/users/me/proj/.git/HEAD') && opts.head !== undefined) return { value: opts.head }
+    throw new Error('ENOENT')
+  })
+  on('tool.call', (_, e) => {
+    ran.push(String(e.tool) === 'Bash' ? String((e as { command?: string }).command) : `${String(e.tool)} ${String((e as { file_path?: string }).file_path)}`)
+    return { result: { stdout: '', stderr: '', interrupted: false } }
+  })
+  return { ran, logs }
+}
+
+test('on Windows, the project in any spelling may be edited; other folders and drives may not', async ($, on) => {
+  const { ran } = winWorld(on)
+  await $.session.start({ cwd: 'C:\\Users\\me\\proj', surface: 'terminal', isInteractive: true })
+  const edit = async (file_path: string) => refusal(await $.tool.call({ tool: 'Edit', file_path, old_string: 'a', new_string: 'b' }))
+  expect(await edit('C:\\Users\\me\\proj\\src\\a.ts')).toBeUndefined()
+  expect(await edit('c:/users/ME/proj/src/b.ts')).toBeUndefined()
+  expect(await edit('src\\c.ts')).toBeUndefined()
+  expect(await edit('C:\\Users\\me\\.claude\\settings.json')).toBeUndefined()
+  expect(await edit('C:\\Users\\me\\AppData\\Local\\Temp\\scratch.txt')).toBeUndefined()
+  expect(await edit('C:\\Windows\\System32\\drivers\\etc\\hosts')).toContain('edits a file outside the project')
+  expect(await edit('D:\\work\\notes.txt')).toContain('outside the project')
+  expect(await edit('..\\elsewhere\\x.txt')).toContain('outside the project')
+  expect(ran).toEqual([
+    'Edit C:\\Users\\me\\proj\\src\\a.ts',
+    'Edit c:/users/ME/proj/src/b.ts',
+    'Edit src\\c.ts',
+    'Edit C:\\Users\\me\\.claude\\settings.json',
+    'Edit C:\\Users\\me\\AppData\\Local\\Temp\\scratch.txt',
+  ])
+})
+
+test('on Windows, rm -r inside the project runs; drives, the project root and other folders are refused', async ($, on) => {
+  const { ran } = winWorld(on, { head: 'ref: refs/heads/main\n' })
+  await $.session.start({ cwd: 'C:\\Users\\me\\proj', surface: 'terminal', isInteractive: true })
+  expect(await bash($, 'rm -rf build')).toBeUndefined()
+  expect(await bash($, 'rm -rf /c/Users/me/proj/dist')).toBeUndefined()
+  expect(await bash($, 'rm -rf /tmp/cache')).toBeUndefined()
+  expect(await bash($, 'rm -rf C:\\')).toContain('deletes everything under C:\\')
+  expect(await bash($, 'rm -rf /c/')).toContain('deletes everything under /c/')
+  expect(await bash($, 'rm -rf "C:\\Users\\me\\proj"')).toContain('deletes the project root')
+  expect(await bash($, 'rm -rf /d/data')).toContain('deletes outside the project')
+  // The current branch is read from the project's .git/HEAD in its Windows spelling.
+  expect(await bash($, 'git push -f')).toContain('protected branch main')
+  expect(ran).toEqual(['rm -rf build', 'rm -rf /c/Users/me/proj/dist', 'rm -rf /tmp/cache'])
+})
+
+test('a project folder it cannot read turns the outside-project check off instead of refusing every edit', async ($, on) => {
+  const { ran, logs } = winWorld(on, { root: 'proj' })
+  await $.session.start({ cwd: 'proj', surface: 'terminal', isInteractive: true })
+  expect(refusal(await $.tool.call({ tool: 'Edit', file_path: 'src\\a.ts', old_string: 'a', new_string: 'b' }))).toBeUndefined()
+  expect(await bash($, 'git reset --hard')).toContain('discards uncommitted changes')
+  expect(ran).toEqual(['Edit src\\a.ts'])
+  expect(logs.some(l => l.includes('could not read the project folder'))).toBe(true)
+})

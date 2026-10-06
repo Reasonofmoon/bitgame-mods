@@ -1,6 +1,7 @@
 import { expect, mock, test } from 'claude-code/testing'
 import type { Engine } from 'claude-code/testing'
 import type { On } from 'claude-code'
+import { keyOf } from '../hooks/register'
 
 // The engine's side: each Bash command fails with the output the test sets.
 function world(on: On) {
@@ -168,4 +169,9 @@ test('/loop-breaker pass is yours and lasts one call; reset clears all', async (
   await $.command.run({ command: 'loop-breaker', args: 'reset', origin: { kind: 'sdk' }, presentation: { isFullscreen: false, columns: 100 } })
   await $.tool.call({ tool: 'Bash', command: 'npm test' })
   expect(ran).toHaveLength(5)
+})
+
+test('a Windows file path is labelled by its file name', async () => {
+  expect(keyOf('Edit', { file_path: 'C:\\Users\\me\\proj\\src\\auth.ts' })?.label).toBe('EDIT auth.ts')
+  expect(keyOf('Write', { file_path: '/proj/src/auth.ts' })?.label).toBe('WRITE auth.ts')
 })

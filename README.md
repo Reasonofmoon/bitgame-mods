@@ -156,7 +156,7 @@ The HUD's `세이브` button runs `/save`; the battle log marks a guard's refusa
 | `git reset --hard` / force-push to main | permission prompt, if asked | if you write it | **refused; one-time `pass` only you can type** |
 | The same failing command, fourth time | runs | rarely | **refused until something changes** |
 | Resume tomorrow | `--continue`, then explain again | — | **`/save` screen; Tab in the next session** |
-| Tests you can run | — | rarely | **63 tests, `claude plugin test`** |
+| Tests you can run | — | rarely | **69 tests, `claude plugin test`** |
 
 If a guard refuses an ordinary command, or misses a case its README lists, it is wrong: [open an issue](https://github.com/Reasonofmoon/bitgame-mods/issues) with the command.
 
@@ -168,6 +168,7 @@ If a guard refuses an ordinary command, or misses a case its README lists, it is
 - **Guards read text, not intent.** A script that runs `npm publish` inside (`./deploy.sh`) is not opened; an unusual key format passes.
 - **Polling looks like a loop.** `curl localhost:3000` failing the same way while a server boots will be sealed at the 4th try; wrap the wait in one command or use `warn`.
 - **Sound needs macOS** (`afplay`). Linux and Windows terminals stay silent.
+- **Windows**: the guards compare paths without regard to case or slash direction (`C:\`, `c:/`, Git Bash `/c/`). Tests cover Windows paths; a run on a real Windows machine is still to come.
 - **HUD and battle log are tested on the `terminal` and `desktop` surfaces** through `claude plugin test`; headless runs (`claude -p`) draw nothing.
 
 ---

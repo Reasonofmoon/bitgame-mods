@@ -49,6 +49,7 @@ claude plugin install game-barrier@bitgame-mods
 
 - It reads the command text. A script that does the same thing (`./deploy.sh` running `npm publish`) is not opened.
 - `rm -r` on a path built from a variable (`rm -rf "$BUILD_DIR"`) is let through: the value is not known before the command runs.
+- On Windows, paths are compared without regard to case or slash direction (`C:\`, `c:/`, Git Bash `/c/`). If the project folder cannot be read, edits outside the project are not checked for that session.
 
 ## 한국어
 

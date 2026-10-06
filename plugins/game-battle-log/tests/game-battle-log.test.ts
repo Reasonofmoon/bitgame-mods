@@ -1,6 +1,7 @@
 import { expect, mock, test } from 'claude-code/testing'
 import type { Engine } from 'claude-code/testing'
 import type { On, RenderElement } from 'claude-code'
+import { short } from '../hooks/register'
 
 const SURFACES = ['terminal', 'desktop'] as const
 
@@ -174,4 +175,12 @@ test('/battle-log off hands every row back to the engine', async ($, on) => {
   expect(off.text).toBe('battle log off')
   await $.ui.mount({ plugin: 'game-battle-log', surface: 'terminal', ...row('Bash', { command: 'ls' }) })
   expect(engine).toHaveLength(1)
+})
+
+test('Windows paths are shown relative to the project, whatever their slashes or case', async () => {
+  expect(short('C:\\Users\\me\\proj\\src\\auth.ts', 'C:\\Users\\me\\proj')).toBe('src/auth.ts')
+  expect(short('c:/users/me/proj/src/auth.ts', 'C:\\Users\\me\\proj')).toBe('src/auth.ts')
+  expect(short('D:\\other\\x.ts', 'C:\\Users\\me\\proj')).toBe('D:\\other\\x.ts')
+  expect(short('/proj/src/auth.ts', '/proj')).toBe('src/auth.ts')
+  expect(short('/Proj/src/auth.ts', '/proj')).toBe('/Proj/src/auth.ts')
 })
