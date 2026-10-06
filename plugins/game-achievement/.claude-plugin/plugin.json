@@ -1,0 +1,44 @@
+{
+  "name": "game-achievement",
+  "displayName": "GAME MODE · Achievement",
+  "version": "0.2.0",
+  "description": "★ ACHIEVEMENT toasts for milestones: first save, 10 safe commits, a comeback, a 10-call combo, a rest before HP 10%; /achievements lists them",
+  "author": {
+    "name": "Reason of Moon",
+    "url": "https://github.com/Reasonofmoon"
+  },
+  "homepage": "https://github.com/Reasonofmoon/bitgame-mods/tree/main/plugins/game-achievement",
+  "repository": "https://github.com/Reasonofmoon/bitgame-mods",
+  "license": "MIT",
+  "keywords": [
+    "mod",
+    "game-mode",
+    "achievements",
+    "milestones"
+  ],
+  "userConfig": {
+    "intensity": {
+      "type": "string",
+      "title": "Intensity",
+      "description": "off records nothing; casual raises a toast on each unlock; hardcore also shows progress toasts",
+      "default": "casual",
+      "options": [
+        "off",
+        "casual",
+        "hardcore"
+      ]
+    },
+    "palette": {
+      "type": "string",
+      "title": "Palette",
+      "description": "nes, gameboy and amber are made for dark terminals; theme follows your Claude Code theme (use it on a light background)",
+      "default": "nes",
+      "options": [
+        "nes",
+        "gameboy",
+        "amber",
+        "theme"
+      ]
+    }
+  }
+}
