@@ -1,0 +1,32 @@
+{
+  "name": "game-answer-memory",
+  "displayName": "GAME MODE · Answer Memory",
+  "version": "0.2.0",
+  "description": "When Claude asks a question it asked before in this project, the option you chose last time is marked ★ 지난번 선택",
+  "author": {
+    "name": "Reason of Moon",
+    "url": "https://github.com/Reasonofmoon"
+  },
+  "homepage": "https://github.com/Reasonofmoon/bitgame-mods/tree/main/plugins/game-answer-memory",
+  "repository": "https://github.com/Reasonofmoon/bitgame-mods",
+  "license": "MIT",
+  "keywords": [
+    "mod",
+    "game-mode",
+    "questions",
+    "memory"
+  ],
+  "userConfig": {
+    "intensity": {
+      "type": "string",
+      "title": "Intensity",
+      "description": "off changes nothing; casual marks the last choice; hardcore also says when it was chosen",
+      "default": "casual",
+      "options": [
+        "off",
+        "casual",
+        "hardcore"
+      ]
+    }
+  }
+}

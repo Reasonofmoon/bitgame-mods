@@ -1,0 +1,64 @@
+{
+  "name": "game-clear-time",
+  "displayName": "GAME MODE · Clear Time",
+  "version": "0.2.0",
+  "description": "A turn ends with CLEAR m:ss · 행동 n · 이번 턴 ₩x · 평소보다 ±m:ss, against the median of the project's last 20 turns",
+  "author": {
+    "name": "Reason of Moon",
+    "url": "https://github.com/Reasonofmoon"
+  },
+  "homepage": "https://github.com/Reasonofmoon/bitgame-mods/tree/main/plugins/game-clear-time",
+  "repository": "https://github.com/Reasonofmoon/bitgame-mods",
+  "license": "MIT",
+  "keywords": [
+    "mod",
+    "game-mode",
+    "turn",
+    "duration",
+    "cost"
+  ],
+  "types": "./types/index.d.ts",
+  "userConfig": {
+    "intensity": {
+      "type": "string",
+      "title": "Intensity",
+      "description": "off leaves the line to the engine; casual draws the clear line; hardcore adds the median it compares against",
+      "default": "casual",
+      "options": [
+        "off",
+        "casual",
+        "hardcore"
+      ]
+    },
+    "palette": {
+      "type": "string",
+      "title": "Palette",
+      "description": "nes, gameboy and amber are made for dark terminals; theme follows your Claude Code theme (use it on a light background)",
+      "default": "nes",
+      "options": [
+        "nes",
+        "gameboy",
+        "amber",
+        "theme"
+      ]
+    },
+    "currency": {
+      "type": "string",
+      "title": "Currency",
+      "description": "krw converts the cost ledger with krwPerUsd; usd shows it as kept",
+      "default": "krw",
+      "options": [
+        "usd",
+        "krw"
+      ]
+    },
+    "krwPerUsd": {
+      "type": "number",
+      "title": "KRW per USD",
+      "description": "Rate used when currency is krw",
+      "default": 1400,
+      "min": 1,
+      "max": 100000
+    }
+  }
+}

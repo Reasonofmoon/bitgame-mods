@@ -1,0 +1,52 @@
+{
+  "name": "game-spell-check",
+  "displayName": "GAME MODE · Spell Check",
+  "version": "0.2.0",
+  "description": "Vague words (적당히, 알아서, 대충 …) underlined while you type and secrets in red; a vague prompt with no done condition asks Claude to state one first; your messages drawn as P1 with the done condition",
+  "author": {
+    "name": "Reason of Moon",
+    "url": "https://github.com/Reasonofmoon"
+  },
+  "homepage": "https://github.com/Reasonofmoon/bitgame-mods/tree/main/plugins/game-spell-check",
+  "repository": "https://github.com/Reasonofmoon/bitgame-mods",
+  "license": "MIT",
+  "keywords": [
+    "mod",
+    "game-mode",
+    "prompt",
+    "clarity",
+    "secrets"
+  ],
+  "types": "./types/index.d.ts",
+  "userConfig": {
+    "intensity": {
+      "type": "string",
+      "title": "Intensity",
+      "description": "off changes nothing; casual marks the draft, asks for a done condition and draws your messages as P1; hardcore also asks when a done condition is missing from any prompt over 200 characters",
+      "default": "casual",
+      "options": [
+        "off",
+        "casual",
+        "hardcore"
+      ]
+    },
+    "palette": {
+      "type": "string",
+      "title": "Palette",
+      "description": "nes, gameboy and amber are made for dark terminals; theme follows your Claude Code theme (use it on a light background)",
+      "default": "nes",
+      "options": [
+        "nes",
+        "gameboy",
+        "amber",
+        "theme"
+      ]
+    },
+    "player": {
+      "type": "string",
+      "title": "Player name",
+      "description": "The name in your message window (P1 · <name>); empty uses your login name",
+      "default": ""
+    }
+  }
+}

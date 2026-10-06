@@ -1,20 +1,33 @@
 {
   "name": "game-barrier",
   "displayName": "GAME MODE · Barrier",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "description": "Stops irreversible calls: force-push to main, reset --hard, rm -r outside the project, publishing, DROP TABLE, and file edits outside the project",
-  "author": { "name": "Reason of Moon", "url": "https://github.com/Reasonofmoon" },
+  "author": {
+    "name": "Reason of Moon",
+    "url": "https://github.com/Reasonofmoon"
+  },
   "homepage": "https://github.com/Reasonofmoon/bitgame-mods/tree/main/plugins/game-barrier",
   "repository": "https://github.com/Reasonofmoon/bitgame-mods",
   "license": "MIT",
-  "keywords": ["mod", "game-mode", "safety", "git", "guard"],
+  "keywords": [
+    "mod",
+    "game-mode",
+    "safety",
+    "git",
+    "guard"
+  ],
   "userConfig": {
     "mode": {
       "type": "string",
       "title": "Mode",
       "description": "block refuses the call before it runs; warn lets it run and tells Claude and you; off stops checking. /barrier changes it for later sessions too",
       "default": "block",
-      "options": ["block", "warn", "off"]
+      "options": [
+        "block",
+        "warn",
+        "off"
+      ]
     },
     "allow": {
       "type": "string",

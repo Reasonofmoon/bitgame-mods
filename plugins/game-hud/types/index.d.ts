@@ -1,3 +1,10 @@
+/** Something that just happened, shown in the HUD's second row until the next prompt. */
+export type HudEvent = {
+  kind: 'rest' | 'saved' | 'levelup'
+  /** The level reached, for `levelup`. */
+  level?: number
+}
+
 /** What the HUD draws from; held in $.state for the session. */
 export type Vitals = {
   /** Context window used, 0–100; null before the first response of the window. */
@@ -18,6 +25,8 @@ export type Vitals = {
   isHidden: boolean
   /** The low-HP toast was shown for the current dip. */
   warned: boolean
+  /** A rest, a save or a level-up since the last prompt; null when none. */
+  event: HudEvent | null
 }
 
 declare module 'claude-code' {

@@ -1,0 +1,6 @@
+{
+  "description": "GAME MODE · Stance hooks module",
+  "modules": [
+    "./register.tsx"
+  ]
+}

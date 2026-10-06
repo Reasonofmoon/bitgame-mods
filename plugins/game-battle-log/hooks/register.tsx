@@ -1,24 +1,34 @@
-import { atom, read, update } from 'claude-code'
-import type { Register } from 'claude-code'
+import { atom, memberOf, read, update } from 'claude-code'
+import type { EngineInterface, Register } from 'claude-code'
 
+import type { BattleRun, CallMark } from '../types'
 import { intensityOf, paletteOf } from './palette'
 import type { Palette } from './palette'
 
 // GAME MODE · BATTLE LOG
 //
 // Tool rows as a battle log, so a failure stands out in a long transcript:
-//   ▸ BASH  npm test                      HIT    ran without an error
-//   ▸ EDIT  src/auth.ts                   CRIT   changed a file
-//   ▸ BASH  npm test                      MISS   errored; first lines shown
+//   ⚔ BATTLE LOG · TURN 3
+//   ▸ BASH  npm test                         HIT
+//   ▸ EDIT  src/auth.ts             +3 −1    CRIT  COMBO ×3
+//   ▸ BASH  npm test                         MISS  COMBO ×3 → BREAK
 //     ✗ 2 failed
-//   ▸ BASH  curl …                        BLOCK  a GAME MODE guard refused it
-// A folded group of reads and searches stays one line (탐색 ×5 … HIT) and
-// unfolds by itself when one of its calls failed.
+//   ▸ BASH  cat .env                         TRAP!
+//     ✗ game-trap-guard blocked this call: …
+// The first row of each turn carries the turn's number. Three or more clean calls in a row
+// are a combo, and the failure that ends one says so. Edits show the lines they add and
+// remove. A GAME MODE guard's refusal shows that guard's verdict (TRAP!, BARRIER!, LOOP!).
+// A folded group of reads and searches stays one line (탐색 ×5 … HIT) and unfolds by itself
+// when one of its calls failed. The run-in-background pill reads SUMMON.
 //
-// Only one-line tools are redrawn (ROWS below). Rows that draw their own
-// content (TodoWrite, Agent, ExitPlanMode, AskUserQuestion, MCP tools) are
-// left to the engine, and successful results (diffs, output) keep the
+// Only one-line tools are redrawn (ROWS below). Rows that draw their own content (TodoWrite,
+// Agent, ExitPlanMode, AskUserQuestion, MCP tools) are left to the engine, with the turn
+// header above them when they open a turn, and successful results (diffs, output) keep the
 // engine's own drawing.
+//
+// Turns, combos and first rows are counted from the rows the conversation keeps
+// (session.append), where every call's row passes whichever plugin refused the call, and
+// from tool.call, whichever comes first.
 
 const ROWS: Record<string, string> = {
   Bash: 'BASH',
@@ -38,8 +48,21 @@ const ROWS: Record<string, string> = {
 
 const WRITES = new Set(['Edit', 'MultiEdit', 'Write', 'NotebookEdit'])
 const BLOCKED = /\bgame-(?:trap-guard|barrier|loop-breaker)\b/
+// Each guard's own verdict, by the name its refusal starts with.
+const GUARDS: readonly (readonly [RegExp, string])[] = [
+  [/\bgame-trap-guard\b/, 'TRAP!'],
+  [/\bgame-barrier\b/, 'BARRIER!'],
+  [/\bgame-loop-breaker\b/, 'LOOP!'],
+]
+const COMBO_MIN = 3
+
+const NONE: CallMark = { turn: 0, isFirst: false, combo: null, broke: 0 }
+const START: BattleRun = { turn: 0, isTurnOpen: false, combo: 0 }
 
 const isOn = atom({ plugin: 'game-battle-log', key: 'isOn' } as const, true)
+const run = atom({ plugin: 'game-battle-log', key: 'run' } as const, START)
+// One mark per call, by its tool_use_id (the row's requestId).
+const call = atom({ plugin: 'game-battle-log', key: 'call' } as const, NONE)
 
 type Kind = 'run' | 'hit' | 'crit' | 'miss' | 'block' | 'esc'
 
@@ -66,31 +89,87 @@ export const register: Register = (on, options) => {
     return next(e)
   })
 
-  on('ui.render', { component: 'ToolUse' }, async ($, e, next) => {
-    const label = ROWS[String(e.props.tool)]
-    if (intensity === 'off' || label === undefined || !(await read($, isOn))) return next(e)
+  // A turn opens: its first call carries the header.
+  on('turn.start', async ($, e, next) => {
+    const sent = await $.session.turns()
+    await update($, run, r => ({ ...r, turn: Math.max(sent, r.turn + 1), isTurnOpen: true }))
+    return next(e)
+  }).catch(($, e, next) => next(e))
 
+  // Calls of the main loop, seen twice: as the conversation keeps them (the model's tool_use
+  // block, then its result, a guard's refusal included whichever plugin refused it) and as they
+  // run. Each call is marked once, by whichever comes first.
+  on('session.append', async ($, e, next) => {
+    const stored = await next(e)
+    if (e.agentId !== undefined) return stored
+    if (e.door === 'response') {
+      for (const id of usesOf(e.message.content)) await made($, id).catch(() => undefined)
+    } else if (e.door === 'tool-result') {
+      for (const r of resultsOf(e.message.content)) await answered($, r.id, r.isError).catch(() => undefined)
+    }
+    return stored
+  }).catch(($, e, next) => next(e))
+
+  on('tool.call', async ($, e, next) => {
+    if (e.agentId !== undefined) return next(e)
+    await made($, e.tool_use_id).catch(() => undefined)
+    const ran = await next(e)
+    await answered($, e.tool_use_id, ran.deny !== undefined || ran.isError === true).catch(() => undefined)
+    return ran
+  }).catch(($, e, next) => next(e))
+
+  on('ui.render', { component: 'ToolUse' }, async ($, e, next) => {
+    if (intensity === 'off' || !(await read($, isOn))) return next(e)
+    const mark = await read($, memberOf(call, { requestId: e.props.tool_use_id }))
     const { Box, Text } = $.ui.resolve(e)
+    const header = (
+      <Text color={pal.title} bold>
+        {`⚔ BATTLE LOG · TURN ${mark.turn}`}
+      </Text>
+    )
+
+    const tool = String(e.props.tool)
+    const label = ROWS[tool]
+    if (label === undefined) {
+      if (!mark.isFirst) return next(e)
+      const below = await next(e)
+      return (
+        <Box flexDirection="column">
+          {header}
+          {below}
+        </Box>
+      )
+    }
+
     const text = textOf(e.props.output)
-    const kind = kindOf(String(e.props.tool), e.props, text)
+    const kind = kindOf(tool, e.props, text)
     const shown = kind === 'miss' || kind === 'block' ? excerpt(text, 3) : undefined
-    const tone = toneOf(kind, pal)
+    const stat = kind === 'crit' ? diffstat(e.props.output) : undefined
+    const combo = comboOf(mark)
 
     return (
       <Box flexDirection="column">
+        {mark.isFirst && header}
         <Box flexDirection="row" gap={1}>
           <Text color={pal.title}>{intensity === 'hardcore' ? '▶' : '▸'}</Text>
-          <Text color={WRITES.has(String(e.props.tool)) ? pal.info : pal.text} bold>
+          <Text color={WRITES.has(tool) ? pal.info : pal.text} bold>
             {intensity === 'hardcore' ? `CLAUDE의 ${label}!` : label}
           </Text>
           <Box flexGrow={1} flexShrink={1}>
             <Text color={pal.dim} wrap="truncate-end">
-              {summarize(String(e.props.tool), e.props.input, root)}
+              {summarize(tool, e.props.input, root)}
             </Text>
           </Box>
-          <Text color={tone} bold>
-            {words[kind]}
+          {stat !== undefined && <Text color={pal.ok}>{`+${stat.added}`}</Text>}
+          {stat !== undefined && <Text color={pal.bad}>{`−${stat.removed}`}</Text>}
+          <Text color={toneOf(kind, pal)} bold>
+            {kind === 'block' ? (guardOf(text) ?? words.block) : words[kind]}
           </Text>
+          {combo !== undefined && (
+            <Text color={combo.isBreak ? pal.bad : pal.title} bold>
+              {combo.text}
+            </Text>
+          )}
         </Box>
         {shown?.lines.map(line => (
           <Text color={kind === 'block' ? pal.title : pal.bad} wrap="truncate-end">
@@ -110,10 +189,17 @@ export const register: Register = (on, options) => {
     return <Box />
   })
 
+  // An unfolded group's rows are ToolUse rows: the one that opens the turn draws the header.
   on('ui.render', { component: 'ToolGroup' }, async ($, e, next) => {
     if (intensity === 'off' || e.props.isExpanded || !(await read($, isOn))) return next(e)
     const calls = e.props.calls
     if (calls.some(c => c.isErrored)) return next({ ...e, props: { ...e.props, isExpanded: true } })
+
+    const marks: CallMark[] = []
+    for (const c of calls) marks.push(c.tool_use_id === undefined ? NONE : await read($, memberOf(call, { requestId: c.tool_use_id })))
+    const first = marks.find(m => m.isFirst)
+    const last = [...marks].reverse().find(m => m.combo !== null)
+    const combo = last === undefined ? undefined : comboOf(last)
 
     const { Box, Text } = $.ui.resolve(e)
     const counts = new Map<string, number>()
@@ -125,19 +211,45 @@ export const register: Register = (on, options) => {
     const detail = [...counts].map(([name, n]) => `${name} ${n}`).join(' · ')
 
     return (
-      <Box flexDirection="row" gap={1}>
-        <Text color={pal.title}>{intensity === 'hardcore' ? '▶' : '▸'}</Text>
-        <Text color={pal.info} bold>
-          {`탐색 ×${calls.length}`}
-        </Text>
-        <Box flexGrow={1} flexShrink={1}>
-          <Text color={pal.dim} wrap="truncate-end">
-            {detail}
+      <Box flexDirection="column">
+        {first !== undefined && (
+          <Text color={pal.title} bold>
+            {`⚔ BATTLE LOG · TURN ${first.turn}`}
           </Text>
+        )}
+        <Box flexDirection="row" gap={1}>
+          <Text color={pal.title}>{intensity === 'hardcore' ? '▶' : '▸'}</Text>
+          <Text color={pal.info} bold>
+            {`탐색 ×${calls.length}`}
+          </Text>
+          <Box flexGrow={1} flexShrink={1}>
+            <Text color={pal.dim} wrap="truncate-end">
+              {detail}
+            </Text>
+          </Box>
+          <Text color={isRunning ? pal.dim : pal.ok} bold>
+            {isRunning ? words.run : words.hit}
+          </Text>
+          {!isRunning && combo !== undefined && (
+            <Text color={combo.isBreak ? pal.bad : pal.title} bold>
+              {combo.text}
+            </Text>
+          )}
         </Box>
-        <Text color={isRunning ? pal.dim : pal.ok} bold>
-          {isRunning ? words.run : words.hit}
+      </Box>
+    )
+  })
+
+  // The run-in-background pill: hand the call to a summon and keep going.
+  on('ui.render', { component: 'ToolProgress' }, async ($, e, next) => {
+    if (intensity === 'off' || e.props.kind !== 'background_hint' || !(await read($, isOn))) return next(e)
+    const { Box, Text } = $.ui.resolve(e)
+    return (
+      <Box flexDirection="row" gap={1}>
+        <Text color={pal.info} bold>
+          SUMMON
         </Text>
+        <Text color={pal.dim}>{`${keyOf(e.props.hint)} ▸ 소환수에게 맡기기 (백그라운드)`}</Text>
       </Box>
     )
   })
@@ -155,6 +267,93 @@ export const register: Register = (on, options) => {
 }
 
 type RowState = { isRunning: boolean; isErrored: boolean; isInterrupted: boolean }
+
+/** A call was made: the turn it belongs to and whether it opens that turn. Once per call. */
+async function made($: EngineInterface, id: string): Promise<void> {
+  const mark = await read($, memberOf(call, { requestId: id }))
+  if (mark.turn !== 0) return
+  const now = await read($, run)
+  if (now.isTurnOpen) await update($, run, r => ({ ...r, isTurnOpen: false }))
+  await update($, memberOf(call, { requestId: id }), m => ({ ...m, turn: now.turn, isFirst: now.isTurnOpen }))
+}
+
+/** A call was answered: the run of clean calls it extends, or the one it ends. Once per call. */
+async function answered($: EngineInterface, id: string, isError: boolean): Promise<void> {
+  const mark = await read($, memberOf(call, { requestId: id }))
+  if (mark.combo !== null) return
+  const before = (await read($, run)).combo
+  const combo = isError ? 0 : before + 1
+  await update($, run, r => ({ ...r, combo }))
+  await update($, memberOf(call, { requestId: id }), m => ({ ...m, combo, broke: isError ? before : 0 }))
+}
+
+/** The ids of the tool_use blocks in a stored row. */
+export function usesOf(content: readonly unknown[]): string[] {
+  const ids: string[] = []
+  for (const block of content) {
+    if (block === null || typeof block !== 'object') continue
+    const b = block as { type?: unknown; id?: unknown }
+    if (b.type === 'tool_use' && typeof b.id === 'string') ids.push(b.id)
+  }
+  return ids
+}
+
+/** The tool results in a stored row, in order, with whether each one failed. */
+export function resultsOf(content: readonly unknown[]): { id: string; isError: boolean }[] {
+  const out: { id: string; isError: boolean }[] = []
+  for (const block of content) {
+    if (block === null || typeof block !== 'object') continue
+    const b = block as { type?: unknown; tool_use_id?: unknown; is_error?: unknown }
+    if (b.type === 'tool_result' && typeof b.tool_use_id === 'string') out.push({ id: b.tool_use_id, isError: b.is_error === true })
+  }
+  return out
+}
+
+/** `COMBO ×n` from three clean calls in a row; on the failure that ends one, `COMBO ×n → BREAK`. */
+export function comboOf(mark: CallMark): { text: string; isBreak: boolean } | undefined {
+  if (mark.combo === null) return undefined
+  if (mark.combo === 0) return mark.broke >= COMBO_MIN ? { text: `COMBO ×${mark.broke} → BREAK`, isBreak: true } : undefined
+  return mark.combo >= COMBO_MIN ? { text: `COMBO ×${mark.combo}`, isBreak: false } : undefined
+}
+
+/** The verdict of the GAME MODE guard that refused a call, by the name its refusal carries. */
+export function guardOf(text: string): string | undefined {
+  return GUARDS.find(([name]) => name.test(text))?.[1]
+}
+
+/** The key the background pill names (`ctrl+b`, or the person's own binding). */
+export function keyOf(hint: string): string {
+  return /\(\s*(.+?)\s+to run in background\s*\)/.exec(hint)?.[1] ?? 'ctrl+b'
+}
+
+/** Lines an edit or a write added and removed, from the patch the tool kept. */
+export function diffstat(output: unknown): { added: number; removed: number } | undefined {
+  if (output === null || typeof output !== 'object') return undefined
+  const o = output as { structuredPatch?: unknown; gitDiff?: unknown; type?: unknown; content?: unknown }
+  if (Array.isArray(o.structuredPatch) && o.structuredPatch.length > 0) {
+    let added = 0
+    let removed = 0
+    for (const hunk of o.structuredPatch) {
+      const lines = hunk !== null && typeof hunk === 'object' ? (hunk as { lines?: unknown }).lines : undefined
+      if (!Array.isArray(lines)) continue
+      for (const line of lines) {
+        if (typeof line !== 'string') continue
+        if (line.startsWith('+')) added++
+        else if (line.startsWith('-')) removed++
+      }
+    }
+    return { added, removed }
+  }
+  const git = o.gitDiff as { additions?: unknown; deletions?: unknown } | undefined
+  if (git !== undefined && typeof git.additions === 'number' && typeof git.deletions === 'number') {
+    return { added: git.additions, removed: git.deletions }
+  }
+  if (o.type === 'create' && typeof o.content === 'string') {
+    const lines = o.content.split('\n')
+    return { added: lines.length - (lines[lines.length - 1] === '' ? 1 : 0), removed: 0 }
+  }
+  return undefined
+}
 
 export function kindOf(tool: string, row: RowState, text: string): Kind {
   if (row.isRunning) return 'run'

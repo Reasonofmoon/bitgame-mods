@@ -48,7 +48,9 @@ function world(on: On, opts: { hasSave?: boolean } = {}) {
     ran.push(e.command)
     return { text: '' }
   })
-  // What the engine draws when the HUD passes.
+  on('tool.call', () => ({ result: { stdout: 'ok', stderr: '', interrupted: false } }))
+  on('turn.start', (_, e) => ({ turnId: e.turnId }))
+  // What the engine (or a plugin beneath) draws in the band.
   on('ui.render', ($, e) => {
     const { Text } = $.ui.resolve(e)
     return h(Text, { dimColor: true }, 'engine') as RenderElement
@@ -69,21 +71,30 @@ async function start($: Engine) {
   await $.session.start({ cwd: '/proj', surface: 'terminal', isInteractive: true })
 }
 
-test('draws HP, MP and G from session.measure on every surface', async ($, on) => {
+async function text(ui: { find: (q: { type: string; text: RegExp }) => Promise<{ text?: string } | undefined> }, re: RegExp) {
+  return (await ui.find({ type: 'Text', text: re }))?.text
+}
+
+test('a window of LV, EXP, HP, MP and G on every surface, under what is beneath', async ($, on) => {
   world(on)
   await start($)
   await $.session.measure(measure(38, { limit: 52, usd: 1.234 }))
   for (const surface of SURFACES) {
     const ui = await $.ui.mount({ plugin: 'game-hud', surface, ...BAND })
-    expect((await ui.find({ type: 'Text', text: /^HP/ }))?.text).toBe('HP █████░░░ 62%')
-    expect((await ui.find({ type: 'Text', text: /^MP/ }))?.text).toBe('MP ████░░░░ 48% 5h')
-    expect((await ui.find({ type: 'Text', text: /^G / }))?.text).toBe('G $1.23')
-    expect(await ui.find({ type: 'Button' })).toBeUndefined()
+    expect(await text(ui, /^LV/)).toBe('LV 01')
+    expect(await text(ui, /^EXP/)).toBe('EXP ░░░░░░░░░░ 0%')
+    expect(await text(ui, /^HP/)).toBe('HP ██████░░░░ 62%')
+    expect(await text(ui, /^MP/)).toBe('MP █████░░░░░ 48% 5h')
+    expect(await text(ui, /^G /)).toBe('G ₩1,728')
+    expect(await text(ui, /^READY/)).toBe('READY')
+    expect(await text(ui, /다음 레벨까지/)).toBe('다음 레벨까지 성공 행동 4')
+    // The band beneath (the engine's, or another plugin's) is kept, above the window.
+    expect(await text(ui, /^engine$/)).toBe('engine')
     await ui.unmount()
   }
 })
 
-test('low HP shows rest and save; the buttons run /compact and /save', async ($, on) => {
+test('low HP: HP LOW! with rest first; the buttons run /compact and /save', async ($, on) => {
   const { ran, toasts } = world(on, { hasSave: true })
   await start($)
   await $.session.measure(measure(80, { usd: 2 }))
@@ -91,7 +102,7 @@ test('low HP shows rest and save; the buttons run /compact and /save', async ($,
   expect(toasts[0]).toContain('HP LOW!')
 
   const ui = await $.ui.mount({ plugin: 'game-hud', surface: 'terminal', ...BAND })
-  expect((await ui.find({ type: 'Text', text: /^HP LOW/ }))?.text).toBe('HP LOW!')
+  expect(await text(ui, /^HP LOW/)).toBe('HP LOW!')
   await ui.press({ key: 'rest' })
   await ui.press({ key: 'save' })
   expect(ran).toEqual(['compact', 'save'])
@@ -108,27 +119,31 @@ test('low HP shows rest and save; the buttons run /compact and /save', async ($,
 test('no save button without game-save-point', async ($, on) => {
   world(on)
   await start($)
-  await $.session.measure(measure(90))
   const ui = await $.ui.mount({ plugin: 'game-hud', surface: 'terminal', ...BAND })
   expect(await ui.findAll({ type: 'Button' })).toHaveLength(1)
 })
 
-test('krw currency converts the ledger', { options: { currency: 'krw', krwPerUsd: 1400 } }, async ($, on) => {
+test('usd shows the ledger as kept', { options: { currency: 'usd' } }, async ($, on) => {
   world(on)
   await start($)
   await $.session.measure(measure(10, { usd: 1.234 }))
   const ui = await $.ui.mount({ plugin: 'game-hud', surface: 'terminal', ...BAND })
-  expect((await ui.find({ type: 'Text', text: /^G / }))?.text).toBe('G ₩1,728')
+  expect(await text(ui, /^G /)).toBe('G $1.23')
 })
 
-test('hardcore adds EXP from successful tool calls', { options: { intensity: 'hardcore' } }, async ($, on) => {
+test('successful calls fill EXP and a new level shows LEVEL UP! until the next prompt', async ($, on) => {
   world(on)
-  on('tool.call', () => ({ result: { stdout: 'ok', stderr: '', interrupted: false } }))
   await start($)
   for (let i = 0; i < 5; i++) await $.tool.call({ tool: 'Bash', command: 'true' })
   const ui = await $.ui.mount({ plugin: 'game-hud', surface: 'terminal', ...BAND })
-  expect((await ui.find({ type: 'Text', text: /^LV/ }))?.text).toBe('LV 2')
-  expect((await ui.find({ type: 'Text', text: /^EXP/ }))?.text).toBe('EXP ░░░░░ 1/12')
+  expect(await text(ui, /^LV/)).toBe('LV 02')
+  expect(await text(ui, /^EXP/)).toBe('EXP █░░░░░░░░░ 8%')
+  expect(await text(ui, /^LEVEL UP/)).toBe('LEVEL UP!')
+  await ui.unmount()
+
+  await $.turn.start({ text: 'next', turnId: 't2' })
+  const after = await $.ui.mount({ plugin: 'game-hud', surface: 'terminal', ...BAND })
+  expect(await text(after, /^READY/)).toBe('READY')
 })
 
 test('/hud hide passes the band to the engine; /hud reports as text', async ($, on) => {
@@ -142,7 +157,7 @@ test('/hud hide passes the band to the engine; /hud reports as text', async ($, 
 
   const report = await $.command.run(hud(''))
   expect(report.text).toContain('HP 75%')
-  expect(report.text).toContain('G  $0.50')
+  expect(report.text).toContain('G  ₩700')
 })
 
 test('off leaves the band to the engine', { options: { intensity: 'off' } }, async ($, on) => {

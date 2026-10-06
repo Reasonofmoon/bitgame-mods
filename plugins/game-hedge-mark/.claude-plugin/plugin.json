@@ -1,0 +1,45 @@
+{
+  "name": "game-hedge-mark",
+  "displayName": "GAME MODE · Hedge Mark",
+  "version": "0.2.0",
+  "description": "Claude's replies in a window headed CLAUDE; sentences that guess (아마, 추정, probably, might …) marked [?], with a footer counting them",
+  "author": {
+    "name": "Reason of Moon",
+    "url": "https://github.com/Reasonofmoon"
+  },
+  "homepage": "https://github.com/Reasonofmoon/bitgame-mods/tree/main/plugins/game-hedge-mark",
+  "repository": "https://github.com/Reasonofmoon/bitgame-mods",
+  "license": "MIT",
+  "keywords": [
+    "mod",
+    "game-mode",
+    "replies",
+    "uncertainty",
+    "transcript"
+  ],
+  "userConfig": {
+    "intensity": {
+      "type": "string",
+      "title": "Intensity",
+      "description": "off leaves replies to the engine; casual draws the window and marks guesses; hardcore marks guesses without the window",
+      "default": "casual",
+      "options": [
+        "off",
+        "casual",
+        "hardcore"
+      ]
+    },
+    "palette": {
+      "type": "string",
+      "title": "Palette",
+      "description": "nes, gameboy and amber are made for dark terminals; theme follows your Claude Code theme (use it on a light background)",
+      "default": "nes",
+      "options": [
+        "nes",
+        "gameboy",
+        "amber",
+        "theme"
+      ]
+    }
+  }
+}

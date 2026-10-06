@@ -1,0 +1,50 @@
+{
+  "name": "game-hint",
+  "displayName": "GAME MODE · Hint",
+  "version": "0.2.0",
+  "description": "The hint line under the prompt adds what to press now: ESC 후퇴 while working, /compact 휴식 at low HP, 오류부터 읽기 after repeated failures, /save 세이브 when a save is due",
+  "author": {
+    "name": "Reason of Moon",
+    "url": "https://github.com/Reasonofmoon"
+  },
+  "homepage": "https://github.com/Reasonofmoon/bitgame-mods/tree/main/plugins/game-hint",
+  "repository": "https://github.com/Reasonofmoon/bitgame-mods",
+  "license": "MIT",
+  "keywords": [
+    "mod",
+    "game-mode",
+    "hints",
+    "footer",
+    "context"
+  ],
+  "types": "./types/index.d.ts",
+  "userConfig": {
+    "intensity": {
+      "type": "string",
+      "title": "Intensity",
+      "description": "off adds nothing; casual adds one or two hints; hardcore also counts the failures",
+      "default": "casual",
+      "options": [
+        "off",
+        "casual",
+        "hardcore"
+      ]
+    },
+    "lowHp": {
+      "type": "number",
+      "title": "Low HP (%)",
+      "description": "Suggest /compact when context left drops to this percent",
+      "default": 25,
+      "min": 5,
+      "max": 60
+    },
+    "saveEvery": {
+      "type": "number",
+      "title": "Save every (turns)",
+      "description": "Suggest /save after this many turns without one (needs game-save-point)",
+      "default": 5,
+      "min": 1,
+      "max": 100
+    }
+  }
+}

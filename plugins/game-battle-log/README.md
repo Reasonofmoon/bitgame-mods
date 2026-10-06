@@ -3,27 +3,32 @@
 Tool rows as an 8-bit battle log, so a failure stands out in a long transcript:
 
 ```
-▸ 탐색 ×5   READ 3 · GREP 2                         HIT
-▸ EDIT      src/auth.ts                             CRIT
+⚔ BATTLE LOG · TURN 2
+▸ 탐색 ×2   READ 2                                  HIT
+▸ WRITE     src/auth.js                    +4 −4    CRIT  COMBO ×3
+▸ BASH      npm test; cat .env                      TRAP! COMBO ×3 → BREAK
+  ✗ game-trap-guard blocked this call: it prints a .env file …
 ▸ BASH      npm test                                MISS
   ✗ FAIL src/auth.test.ts
-  ✗   2 failed
   … +3줄 (ctrl+o)
-▸ BASH      cat .env                                BLOCK
-  ✗ game-trap-guard blocked this call: it prints a .env file …
+  SUMMON ctrl+b ▸ 소환수에게 맡기기 (백그라운드)
 ```
 
-| Verdict | When |
+| Mark | When |
 |---|---|
+| `⚔ BATTLE LOG · TURN n` | above the first row of each turn (an engine-drawn row too, like a todo list) |
 | `HIT` | ran without an error |
-| `CRIT` | Edit / Write / NotebookEdit changed a file |
+| `CRIT` + `+added −removed` | Edit / Write / NotebookEdit changed a file; the line counts come from the patch the tool kept |
 | `MISS` | errored; up to three lines that say what failed are shown (`FAIL`, `not ok`, `error`, `expected`, …), exit codes, `TAP version` and runtime warnings are skipped, and the engine's own error block steps aside |
-| `BLOCK` | a GAME MODE guard ([trap guard](../game-trap-guard), [barrier](../game-barrier), [loop breaker](../game-loop-breaker)) refused it |
+| `TRAP!` · `BARRIER!` · `LOOP!` | the [trap guard](../game-trap-guard), [barrier](../game-barrier) or [loop breaker](../game-loop-breaker) refused it |
+| `COMBO ×n` | three or more clean calls in a row (across turns) |
+| `COMBO ×n → BREAK` | the failure or refusal that ended such a run |
+| `SUMMON` | the run-in-background pill (`ctrl+b`, or your own binding) |
 | `ESC` · `…` | interrupted · still running |
 
-A folded group of reads and searches stays one line, and **unfolds by itself when one of its calls failed**.
+A folded group of reads and searches stays one line (with the turn header and the combo when they belong to it), and **unfolds by itself when one of its calls failed**.
 
-Only one-line tools are redrawn (Bash, Read, Edit, Write, NotebookEdit, Grep, Glob, LS, WebFetch, WebSearch, BashOutput, KillShell). Rows that draw their own content (TodoWrite, Agent, ExitPlanMode, AskUserQuestion, MCP tools) and successful results (diffs, output) keep the engine's drawing.
+Calls are counted from the rows the session keeps (`session.append`), where every refusal shows whichever plugin made it and in whatever order the plugins load, and from `tool.call`, whichever comes first. Subagents' calls are not counted.
 
 Part of the [GAME MODE pack](../../README.md). Requires Claude Code 2.1.287+; built and tested on 2.1.291.
 
@@ -44,4 +49,4 @@ claude plugin install game-battle-log@bitgame-mods
 
 ## 한국어
 
-도구 실행 줄을 전투 로그처럼 HIT/CRIT/MISS/BLOCK 판정으로 보여줍니다. 실패하면 무엇이 실패했는지 말하는 줄을 최대 3줄 바로 펼치고(종료 코드·경고 줄은 건너뜀), 접힌 탐색 묶음에 실패가 있으면 자동으로 펼칩니다.
+도구 실행 줄을 전투 로그로 보여줍니다. 턴의 첫 줄에 `TURN n`, 연속 성공 3번부터 `COMBO`, 그것을 끊은 실패에 `BREAK`, 수정에는 `+추가 −삭제` 줄 수, 가드 차단에는 가드별 판정(TRAP!·BARRIER!·LOOP!), 백그라운드 안내는 `SUMMON`. 실패하면 무엇이 실패했는지 최대 3줄을 바로 펼칩니다.

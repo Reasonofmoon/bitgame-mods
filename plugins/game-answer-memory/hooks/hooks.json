@@ -1,0 +1,6 @@
+{
+  "description": "GAME MODE · Answer Memory hooks module",
+  "modules": [
+    "./register.tsx"
+  ]
+}

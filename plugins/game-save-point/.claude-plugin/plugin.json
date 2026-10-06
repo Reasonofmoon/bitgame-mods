@@ -1,13 +1,22 @@
 {
   "name": "game-save-point",
   "displayName": "GAME MODE · Save Point",
-  "version": "0.1.1",
-  "description": "/save writes an RPG save screen of the session (cleared, quest log, decisions, resume prompt, items); the next session offers the resume prompt on Tab",
-  "author": { "name": "Reason of Moon", "url": "https://github.com/Reasonofmoon" },
+  "version": "0.2.0",
+  "description": "/save writes an 8-bit save screen (cleared, quest log, decisions, inventory, a password with the resume prompt copied); /load <password>; a title screen with CONTINUE, NEW GAME and LOAD when a session starts in a folder with saves",
+  "author": {
+    "name": "Reason of Moon",
+    "url": "https://github.com/Reasonofmoon"
+  },
   "homepage": "https://github.com/Reasonofmoon/bitgame-mods/tree/main/plugins/game-save-point",
   "repository": "https://github.com/Reasonofmoon/bitgame-mods",
   "license": "MIT",
-  "keywords": ["mod", "game-mode", "handoff", "resume", "summary"],
+  "keywords": [
+    "mod",
+    "game-mode",
+    "handoff",
+    "resume",
+    "summary"
+  ],
   "types": "./types/index.d.ts",
   "userConfig": {
     "intensity": {
@@ -15,14 +24,23 @@
       "title": "Intensity",
       "description": "off shows saves as plain text; casual and hardcore draw the save screen",
       "default": "casual",
-      "options": ["off", "casual", "hardcore"]
+      "options": [
+        "off",
+        "casual",
+        "hardcore"
+      ]
     },
     "palette": {
       "type": "string",
       "title": "Palette",
       "description": "nes, gameboy and amber are made for dark terminals; theme follows your Claude Code theme (use it on a light background)",
       "default": "nes",
-      "options": ["nes", "gameboy", "amber", "theme"]
+      "options": [
+        "nes",
+        "gameboy",
+        "amber",
+        "theme"
+      ]
     },
     "maxAgeDays": {
       "type": "number",

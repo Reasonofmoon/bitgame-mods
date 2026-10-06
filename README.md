@@ -7,7 +7,7 @@
   &nbsp;·&nbsp;
   <a href="#see-it-fire"><strong>See it fire</strong></a>
   &nbsp;·&nbsp;
-  <a href="#the-seven-mods"><strong>The seven mods</strong></a>
+  <a href="#the-21-mods"><strong>The 21 mods</strong></a>
   &nbsp;·&nbsp;
   <a href="#settings"><strong>Settings</strong></a>
   &nbsp;·&nbsp;
@@ -34,17 +34,31 @@
 
 ---
 
-## Kernel (one rule · seven mods)
+## Kernel (one rule · 21 mods)
 
-| You see | What it is | What it does |
-|---------|------------|--------------|
-| `LV 3  HP █████░░░ 62%  MP ████░░░░ 48% 5h  G $1.24` | **HUD** above the prompt | context left, plan usage left, session cost; at low HP, rest (`/compact`) and save (`/save`) buttons |
-| `▸ BASH  npm test  MISS` + `✗ 2 failed` | **Battle log** | failures stand out in a long transcript; a folded group with a failure unfolds by itself |
+| You see | Mod | What it does |
+|---------|-----|--------------|
+| `LV 03  EXP █░░  HP ███ 96%  MP ███ 77% 5h  G ₩263` · `READY` · `HP LOW!` · `SAVED` · `LEVEL UP!` | **HUD** | context left, plan usage left and session cost above the prompt; rest (`/compact`) and save (`/save`) buttons |
+| `⚔ BATTLE LOG · TURN 2` · `▸ WRITE src/auth.js +4 −4 CRIT COMBO ×3` · `SUMMON` | **Battle log** | failures stand out; edits show their line counts; a run of clean calls is a combo and the failure that ends it says `BREAK` |
 | `TRAP!` | **Trap guard** | refuses calls that would leak a secret |
 | `BARRIER!` | **Barrier** | refuses calls that cannot be undone |
-| `LOOP 2/3` | **Loop breaker** | stops the same failure being retried unchanged |
-| `★ SAVE POINT ★` | **Save point** | `/save` = what was done, what is left, decisions, a resume prompt, the files made; next session resumes on Tab |
-| ♪ | **Earcons** | a sound when a prompt or question waits on you, a long turn ends, a guard refuses (macOS) |
+| `LOOP!` | **Loop breaker** | stops the same failure being retried unchanged |
+| `◆ ★ SAVE POINT ★` · `PASSWORD SP01-MCS4-MOON COPIED!` · title screen | **Save point** | `/save` = what was done, what is left, decisions, files, a resume prompt copied to the clipboard; `/load <password>`; the next session opens on a title screen |
+| ♪ | **Earcons** | a sound when a prompt or question waits on you, a long turn ends, a guard refuses, a save is made (macOS, Windows, Linux) |
+| `STANCE  자동 승인` | **Stance** | the permission mode as a colored badge at the right of the footer; follows shift+tab |
+| `CASTING · BASH npm test… · 행동 3 · G +₩120 (12s · ↓ 300 tokens)` | **Casting** | what the turn is doing now and what it has cost so far |
+| `✦ CLEAR 0:42 · 행동 7 · 이번 턴 ₩312 · 평소보다 −0:13` | **Clear time** | each turn against the project's usual turn (median of the last 20) |
+| `/party` | **Party** | the session's subagents: `ACTIVE` · `CLEAR` · `FAIL`, their tool calls and jobs |
+| `/quest` | **Quest** | the task list as a quest log (`✓` `▶` `·`, the last one the `BOSS`), kept across `/compact` and sessions |
+| `/minimap` | **Minimap** | the project's files: edited, read, unexplored, and which ones Claude keeps re-reading |
+| `▸ ESC 후퇴` · `▸ /compact 휴식` · `▸ 오류부터 읽기` · `▸ /save 세이브` | **Hint** | what to press now, on the hint line |
+| `MAP master ⚠ 보호 · 플레이 1:05` | **Map** | the branch (protected ones marked) and the play time |
+| `적당히` underlined · `⚠ '적당히' — 무엇이 되면 끝인지 적어라` · `P1 · moon` | **Spell check** | vague words and secrets marked while you type; a vague prompt asks Claude for a done condition first |
+| `★ 지난번 선택` | **Answer memory** | the option you chose last time, when Claude asks the same question again |
+| `CLAUDE` window · `**[?]**` · `? 추정 2곳 · 확인되기 전까지는 가설` | **Hedge mark** | sentences that guess are marked, so checked facts and guesses read apart |
+| `✦ ITEM GET! docs/auth-notes.md · 새 파일 23줄` · `/inventory` | **Item get** | new files stand out; the files made and changed this session as items |
+| `EQUIP 모델 Sonnet 5.5 장착 · 교체는 /model` | **Equip** | which model is on, at the start and whenever it changes |
+| `★ ACHIEVEMENT 역전승` · `/achievements` | **Achievement** | first save, 10 safe commits, a comeback, a 10-call combo, a rest before HP 10% |
 
 ---
 
@@ -52,30 +66,26 @@
 
 ## See it fire
 
-A real Claude Code 2.1.291 session in a throwaway repository with an uncommitted change and an `.env`. Claude was asked to run six commands as written. What it received:
+All 21 mods in recorded Claude Code 2.1.291 sessions (terminal, 150 × 46, 2 min 49 s): [`docs/assets/game-mode-0.2.0.mp4`](docs/assets/game-mode-0.2.0.mp4).
+
+| | |
+|---|---|
+| <img src="docs/assets/shot-title.png" alt="Title screen, HUD window, EQUIP line, MAP status line, STANCE badge, and 적당히 underlined with its hint" /> | <img src="docs/assets/shot-battle.png" alt="P1 message window, CLAUDE window stating the done condition, battle log TURN header and combo, CASTING spinner, PARTY pane" /> |
+| **Start:** title screen, HUD, EQUIP, MAP, STANCE; `적당히` underlined, the hint asks for a done condition | **Turn 1:** `P1` window, Claude states the done condition, `TURN 1`, `COMBO`, `CASTING`, the party pane opens |
+| <img src="docs/assets/shot-guards.png" alt="TRAP! and BARRIER! in the battle log, LOOP! on the fourth identical failure, the hint line saying 오류부터 읽기" /> | <img src="docs/assets/shot-save.png" alt="The save board with QUEST LOG, decisions, INVENTORY and PASSWORD COPIED, the first-save achievement and SAVED in the HUD" /> |
+| **Guards:** `TRAP!` `BARRIER!` `COMBO ×14 → BREAK`, then `LOOP!`; the hint says `오류부터 읽기` | **`/save`:** the board, `PASSWORD … COPIED!`, `★ ACHIEVEMENT 첫 세이브`, `SAVED` |
+| <img src="docs/assets/shot-panes.png" alt="Quest and minimap panes in a new session: the quest log carried over, files read colored on the map" /> | <img src="docs/assets/shot-hedge.png" alt="CLAUDE window with three guessing sentences marked [?] and the footer 추정 3곳" /> |
+| **Next session:** the quest log carried over, the minimap after two reads | **Guesses:** `[?]` on each guessing sentence, `? 추정 3곳` |
+
+What Claude receives when a guard refuses (from the same kind of run, 0.1.1):
 
 ```text
-1. game-trap-guard blocked this call: it prints a .env file into the conversation (.env). Keep secrets out of commands, files and the conversation: …
-2. game-barrier blocked this call: it discards uncommitted changes (git reset --hard). This cannot be undone from here. Find a reversible way …
-3. Exit code 2 / ls: cannot access '/nonexistent-dir-xyz': No such file or directory
-4. Exit code 2 / ls: cannot access '/nonexistent-dir-xyz': No such file or directory      ← LOOP 2/3
-5. Exit code 2 / ls: cannot access '/nonexistent-dir-xyz': No such file or directory      ← LOOP 3
-6. game-loop-breaker blocked this call: `ls /nonexistent-dir-xyz` already failed the same way 3 times in a row (…). Running it again unchanged will not help. …
+game-trap-guard blocked this call: it prints a .env file into the conversation (.env). Keep secrets out of commands, files and the conversation: …
+game-barrier blocked this call: it discards uncommitted changes (git reset --hard). This cannot be undone from here. Find a reversible way …
+game-loop-breaker blocked this call: `ls /nonexistent-dir-xyz` already failed the same way 3 times in a row (…). Running it again unchanged will not help. …
 ```
 
-The uncommitted change survived. Then `/save` in a resumed session:
-
-```text
-◆ SAVE POINT · 로그인 버그 메모 파일 생성
-SLOT 1/1 · 2026-10-06 21:03 · TURN 2 · $0.08 · CTX 4%
-[CLEARED]
-- /tmp/gm-smoke/notes.txt 파일 생성
-…
-[PASSWORD]
-/tmp/gm-smoke/notes.txt 파일에는 첫 줄에 '로그인 버그 메모'만 적혀 있습니다. …
-```
-
-Full log: [`examples/RUN-2026-10-06.md`](examples/RUN-2026-10-06.md).
+Full log of the guards and `/save`: [`examples/RUN-2026-10-06.md`](examples/RUN-2026-10-06.md).
 
 ---
 
@@ -83,18 +93,28 @@ Full log: [`examples/RUN-2026-10-06.md`](examples/RUN-2026-10-06.md).
 
 ## Start in 30 seconds
 
+macOS, Linux, Git Bash:
+
 ```bash
 claude plugin marketplace add Reasonofmoon/bitgame-mods
-claude plugin install game-hud@bitgame-mods
-claude plugin install game-battle-log@bitgame-mods
-claude plugin install game-trap-guard@bitgame-mods
-claude plugin install game-barrier@bitgame-mods
-claude plugin install game-loop-breaker@bitgame-mods
-claude plugin install game-save-point@bitgame-mods
-claude plugin install game-earcons@bitgame-mods
+for m in hud battle-log trap-guard barrier loop-breaker save-point earcons \
+         stance casting clear-time party quest minimap hint map \
+         spell-check answer-memory hedge-mark item-get equip achievement; do
+  claude plugin install "game-$m@bitgame-mods"
+done
 ```
 
-Or one at a time from inside a session: `/plugin install game-hud --marketplace Reasonofmoon/bitgame-mods`. Each mod works alone; install only the ones you want.
+Windows PowerShell:
+
+```powershell
+claude plugin marketplace add Reasonofmoon/bitgame-mods
+"hud","battle-log","trap-guard","barrier","loop-breaker","save-point","earcons",
+"stance","casting","clear-time","party","quest","minimap","hint","map",
+"spell-check","answer-memory","hedge-mark","item-get","equip","achievement" |
+  ForEach-Object { claude plugin install "game-$_@bitgame-mods" }
+```
+
+Each mod works alone; install only the ones you want. Already on 0.1.x: `claude plugin marketplace update bitgame-mods`, then `claude plugin update game-<mod>@bitgame-mods` for the seven you have and install the new ones; restart Claude Code.
 
 Try one without installing: `claude --plugin-dir ./plugins/game-trap-guard`.
 
@@ -102,19 +122,33 @@ Requires **Claude Code 2.1.287 or later** (mods). Built and tested on 2.1.291. C
 
 ---
 
-<a id="the-seven-mods"></a>
+<a id="the-21-mods"></a>
 
-## The seven mods
+## The 21 mods
 
-| Mod | Hooks | Commands |
-|-----|-------|----------|
-| [**game-hud**](plugins/game-hud) | `AbovePrompt` · `session.measure` · `turn.complete` | `/hud` · `hide` · `show` |
-| [**game-battle-log**](plugins/game-battle-log) | `ToolUse` · `ToolResult` · `ToolGroup` | `/battle-log on` · `off` |
-| [**game-trap-guard**](plugins/game-trap-guard) | `tool.call` (refuses) | `/trap-guard` · `block` · `warn` · `off` · `pass` |
-| [**game-barrier**](plugins/game-barrier) | `tool.call` (refuses) | `/barrier` · `block` · `warn` · `off` · `pass` |
-| [**game-loop-breaker**](plugins/game-loop-breaker) | `tool.call` · `prompt.submit` | `/loop-breaker` · `reset` · `block` · `warn` · `off` · `pass` |
-| [**game-save-point**](plugins/game-save-point) | `command.run` · `$.model.fork` · `prompt.suggest` · `CommandOutput` | `/save [note\|show\|list]` · `/load [n]` |
-| [**game-earcons**](plugins/game-earcons) | `$.audio.play` · `tool.check` · `session.append` · `turn.complete` | `/earcons` · `test` · `on` · `off` |
+| # | Mod | Hooks | Commands |
+|---|-----|-------|----------|
+| 01 | [**game-hud**](plugins/game-hud) | `AbovePrompt` · `session.measure` · `tool.call` · `session.compact` · `session.append` | `/hud` · `hide` · `show` |
+| 02 | [**game-battle-log**](plugins/game-battle-log) | `ToolUse` · `ToolResult` · `ToolGroup` · `ToolProgress` · `session.append` · `tool.call` | `/battle-log on` · `off` |
+| 03 | [**game-trap-guard**](plugins/game-trap-guard) | `tool.call` (refuses) | `/trap-guard` · `block` · `warn` · `off` · `pass` |
+| 04 | [**game-barrier**](plugins/game-barrier) | `tool.call` (refuses) | `/barrier` · `block` · `warn` · `off` · `pass` |
+| 05 | [**game-loop-breaker**](plugins/game-loop-breaker) | `tool.call` · `prompt.submit` | `/loop-breaker` · `reset` · `block` · `warn` · `off` · `pass` |
+| 06 | [**game-save-point**](plugins/game-save-point) | `command.run` · `$.model.fork` · `$.ui.copy` · `prompt.suggest` · `CommandOutput` · `AbovePrompt` · `PromptHint` | `/save [note\|show\|list]` · `/load [n\|password]` |
+| 07 | [**game-earcons**](plugins/game-earcons) | `$.audio.play` · `$.process.run` · `tool.check` · `session.append` · `turn.complete` | `/earcons` · `test` · `on` · `off` |
+| 08 | [**game-stance**](plugins/game-stance) | `SessionMode` · `PromptHint` · `classic.UserPromptSubmit` · `classic.PostToolUse` | — |
+| 09 | [**game-casting**](plugins/game-casting) | `Spinner` · `tool.call` · `session.measure` | — |
+| 10 | [**game-clear-time**](plugins/game-clear-time) | `TurnDuration` · `turn.complete` · `tool.call` | `/clear-time` |
+| 11 | [**game-party**](plugins/game-party) | `Pane` · `agent.spawn` · `tool.call` · `turn.complete` | `/party` |
+| 12 | [**game-quest**](plugins/game-quest) | `Pane` · `tool.call` (TodoWrite, TaskCreate, TaskUpdate) | `/quest [clear]` |
+| 13 | [**game-minimap**](plugins/game-minimap) | `Pane` · `tool.call` · `$.process.run` (git ls-files) | `/minimap` |
+| 14 | [**game-hint**](plugins/game-hint) | `PromptHint` · `session.measure` · `tool.call` · `session.append` | — |
+| 15 | [**game-map**](plugins/game-map) | `$.ui.status` · `$.process.run` (git) · `$.clock.every` | `/map` |
+| 16 | [**game-spell-check**](plugins/game-spell-check) | `prompt.edit` · `prompt.submit` · `PromptHint` · `UserMessage` | — |
+| 17 | [**game-answer-memory**](plugins/game-answer-memory) | `AskUserQuestion` · `tool.call` | — |
+| 18 | [**game-hedge-mark**](plugins/game-hedge-mark) | `AssistantMessage` | — |
+| 19 | [**game-item-get**](plugins/game-item-get) | `ToolResult` · `CommandOutput` · `tool.call` | `/inventory` |
+| 20 | [**game-equip**](plugins/game-equip) | `InfoNotice` · `$.ui.log` · `turn.start` · `classic.PostModelSwitch` | — |
+| 21 | [**game-achievement**](plugins/game-achievement) | `tool.call` · `session.append` · `session.compact` · `CommandOutput` | `/achievements` |
 
 What each guard refuses, in one line each (details in each README):
 
@@ -132,9 +166,14 @@ Change any of these with `/plugin configure <mod>@bitgame-mods`.
 
 | Setting | Mods | Default | Values |
 |---------|------|---------|--------|
-| `intensity` | HUD, battle log, save point, earcons | `casual` | `off` · `casual` · `hardcore` |
-| `palette` | HUD, battle log, save point | `nes` | `nes` · `gameboy` · `amber` (dark terminals) · `theme` (follows your Claude Code theme; use it on a light background) |
+| `intensity` | every mod but the three guards | `casual` | `off` · `casual` · `hardcore` (each README says what `hardcore` adds) |
+| `palette` | every mod that draws | `nes` | `nes` · `gameboy` · `amber` (dark terminals) · `theme` (follows your Claude Code theme; use it on a light background) |
+| `currency` · `krwPerUsd` | HUD, casting, clear time | `krw` · `1400` | `krw` · `usd` |
 | `mode` | trap guard, barrier, loop breaker | `block` | `block` · `warn` · `off` |
+| `lowHp` | HUD, hint | `25` | percent of context left that counts as low |
+| `autoOpen` | party | `true` | open the pane when the first subagent starts (144 columns and up) |
+| `protectedBranches` | map | `main,master,production,release/*` | names or patterns marked `⚠ 보호` |
+| `player` | spell check | your login name | the name in `P1 · <name>` |
 
 - **`pass`** lets the next refused call run once (within 10 minutes). `pass`, `warn` and `off` are accepted only when **you** type them, so Claude cannot lift a guard by running the command itself.
 - **Pixel font:** in a terminal the look comes from your terminal's font. Set it to **Galmuri Mono 11** ([quiple/galmuri](https://github.com/quiple/galmuri), OFL) and the whole screen matches.
@@ -143,7 +182,7 @@ Change any of these with `/plugin configure <mod>@bitgame-mods`.
 
 ## Together
 
-The HUD's `세이브` button runs `/save`; the battle log marks a guard's refusal `BLOCK`; earcons plays `block` and `save`. The links are plain text (`game-<mod> blocked this call:`), so any subset works and nothing breaks when one is missing.
+The HUD's `세이브` button runs `/save`; the battle log names each guard's refusal; earcons plays `block` and `save`; the hint line and the HUD both read the context left; the save point's `Tab 이어하기` and the hint mod's `▸ /save 세이브` share the hint line. The links are plain text (`game-<mod> blocked this call:`, `◆ SAVE POINT ·`) or the engine's own events, so any subset works and nothing breaks when one is missing.
 
 ---
 
@@ -155,8 +194,10 @@ The HUD's `세이브` button runs `/save`; the battle log marks a guard's refusa
 | A secret about to be printed or written | permission prompt, if asked | if you write it | **refused before it runs, with what to do instead** |
 | `git reset --hard` / force-push to main | permission prompt, if asked | if you write it | **refused; one-time `pass` only you can type** |
 | The same failing command, fourth time | runs | rarely | **refused until something changes** |
-| Resume tomorrow | `--continue`, then explain again | — | **`/save` screen; Tab in the next session** |
-| Tests you can run | — | rarely | **69 tests, `claude plugin test`** |
+| "Fix it properly" with no finish line | Claude guesses | — | **Claude states the done condition first** |
+| A guess written as a fact | reads like the rest | — | **marked `[?]` and counted** |
+| Resume tomorrow | `--continue`, then explain again | — | **title screen; Tab, or `/load <password>`** |
+| Tests you can run | — | rarely | **152 tests, `claude plugin test`** |
 
 If a guard refuses an ordinary command, or misses a case its README lists, it is wrong: [open an issue](https://github.com/Reasonofmoon/bitgame-mods/issues) with the command.
 
@@ -167,9 +208,12 @@ If a guard refuses an ordinary command, or misses a case its README lists, it is
 - **The permission prompt cannot be changed by a mod.** Earcons plays `ask` when one opens instead.
 - **Guards read text, not intent.** A script that runs `npm publish` inside (`./deploy.sh`) is not opened; an unusual key format passes.
 - **Polling looks like a loop.** `curl localhost:3000` failing the same way while a server boots will be sealed at the 4th try; wrap the wait in one command or use `warn`.
-- **Sound needs macOS** (`afplay`). Linux and Windows terminals stay silent.
-- **Windows**: the guards compare paths without regard to case or slash direction (`C:\`, `c:/`, Git Bash `/c/`). Tests cover Windows paths; a run on a real Windows machine is still to come.
-- **HUD and battle log are tested on the `terminal` and `desktop` surfaces** through `claude plugin test`; headless runs (`claude -p`) draw nothing.
+- **Stance between prompts is inferred.** No event reports a shift+tab, so the badge follows the footer and shift+tab's order; the next prompt or tool result confirms the mode exactly.
+- **Equip:** in a session with an API key the engine shows no model notice under the logo, so the equip line is a transcript row of its own.
+- **Answer memory** can only mark an option (in its description); the dialog itself is the engine's.
+- **Sound:** Windows plays through PowerShell's `SoundPlayer` (first cue about a second late while PowerShell starts); Linux needs `paplay` (PulseAudio or PipeWire) or `aplay`.
+- **Windows**: paths are compared without regard to case or slash direction (`C:\`, `c:/`, Git Bash `/c/`); tests cover them.
+- **Headless runs** (`claude -p`) draw nothing; the guards still refuse.
 
 ---
 
@@ -177,10 +221,11 @@ If a guard refuses an ordinary command, or misses a case its README lists, it is
 
 ```
 .claude-plugin/marketplace.json   the catalog `claude plugin marketplace add` reads
-plugins/game-*/                   one plugin each: plugin.json · hooks/ · tests/ · README
+plugins/game-*/                   one plugin each: plugin.json · hooks/ · types/ · tests/ · README
+plugins/game-*/hooks/palette.ts   the shared look, one copy per plugin (scripts/check.sh keeps them equal)
 plugins/game-earcons/sounds/      the 8-bit WAV cues (scripts/make-earcons.py writes them)
 examples/RUN-2026-10-06.md        real-run log of the guards and /save
-docs/                             ROADMAP · hero image (docs/src/hero.html → docs/assets/hero.png)
+docs/                             GOALS (0.2.0 acceptance) · ROADMAP · screenshots · hero image
 scripts/check.sh                  strict validate + tests for every plugin (CI runs this)
 ```
 
@@ -190,20 +235,10 @@ Zero runtime dependencies. The hooks modules run inside Claude Code's own mod en
 
 ## 한국어 요약
 
-**GAME MODE**는 Claude Code를 8비트 게임 화면처럼 꾸미되, **모든 요소가 실제 일을 하도록** 만든 Mod 7종입니다.
+**GAME MODE**는 Claude Code를 8비트 게임 화면처럼 꾸미되, **모든 요소가 실제 일을 하도록** 만든 Mod 21종입니다. 원하는 것만 골라 설치해도 됩니다.
 
-- `game-hud`: 프롬프트 위에 HP(남은 컨텍스트)·MP(요금제 한도)·G(비용) 표시. HP가 25% 아래면 휴식(`/compact`)·세이브(`/save`) 버튼
-- `game-battle-log`: 도구 실행을 HIT/CRIT/MISS/BLOCK으로 표시. 실패하면 무엇이 실패했는지 말하는 줄을 바로 펼침
-- `game-trap-guard`: 비밀키 노출(`cat .env`, 코드에 키 직접 쓰기 등)을 실행 전에 차단
-- `game-barrier`: main 강제 push, `reset --hard`, 프로젝트 밖 `rm -rf`, publish 같은 되돌릴 수 없는 명령 차단
-- `game-loop-breaker`: 같은 실패를 그대로 반복하면 4번째 실행을 차단
-- `game-save-point`: `/save`로 한 일·남은 일·결정할 것·이어하기 프롬프트·산출물을 세이브 화면으로 저장. 다음 세션에서 Tab으로 이어하기
-- `game-earcons`: 확인 대기·완료·오류·차단·세이브를 8비트 효과음으로 알림(macOS)
+- **안전과 비용 (P1)**: HUD(HP=남은 컨텍스트, MP=요금제 한도, G=비용 ₩), 전투 로그(TURN·COMBO·BREAK·+/− 줄 수·가드별 판정), 트랩 가드(비밀키 노출 차단), 결계(되돌릴 수 없는 명령 차단), 루프 차단, 세이브 포인트(세이브 화면·PASSWORD·타이틀 화면·`/load`), 효과음(macOS·Windows·Linux)
+- **흐름 파악 (P2)**: STANCE(권한 모드 배지), CASTING(지금 하는 일과 이번 턴 비용), CLEAR(평소 대비 턴 시간), PARTY·QUEST·MINIMAP 패널, 힌트 줄, MAP(브랜치와 플레이 시간)
+- **습관 (P3)**: 스펠 체크(모호어 밑줄, 완료 조건 먼저 요청, `P1` 메시지 창), 지난번 선택 ★, 추정 문장 `[?]` 표시, ITEM GET!·`/inventory`, EQUIP(모델), 업적
 
-설치: `claude plugin marketplace add Reasonofmoon/bitgame-mods` → `claude plugin install game-hud@bitgame-mods` (나머지도 같은 방식). 기본값은 가드 3종 차단(block), 연출 강도 CASUAL, 팔레트 NES입니다. 가드를 잠시 풀려면 직접 `/trap-guard pass`처럼 입력하세요. Claude가 대신 입력해도 받아들이지 않습니다.
-
----
-
-## License
-
-MIT · Reason of Moon. The hero image uses the Galmuri font (© Lee Minseo, [SIL OFL 1.1](docs/src/fonts/OFL.md)).
+설치는 위 [Start in 30 seconds](#start-in-30-seconds)의 명령 한 번이면 됩니다. Windows는 PowerShell 블록을 쓰세요.

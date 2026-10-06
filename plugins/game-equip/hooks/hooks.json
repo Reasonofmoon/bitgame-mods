@@ -1,0 +1,6 @@
+{
+  "description": "GAME MODE · Equip hooks module",
+  "modules": [
+    "./register.tsx"
+  ]
+}
