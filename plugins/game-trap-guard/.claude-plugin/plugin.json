@@ -1,7 +1,7 @@
 {
   "name": "game-trap-guard",
   "displayName": "GAME MODE · Trap Guard",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Stops tool calls that would leak a secret: literal keys in commands or source files, cat .env / echo $API_KEY, reading key files into the conversation",
   "author": { "name": "Reason of Moon", "url": "https://github.com/Reasonofmoon" },
   "homepage": "https://github.com/Reasonofmoon/bitgame-mods/tree/main/plugins/game-trap-guard",

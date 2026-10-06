@@ -105,6 +105,18 @@ test('success and a new message from you clear the streak', async ($, on) => {
   expect(fresh.context).toBeUndefined()
 })
 
+test('a LOOP line kept from before a reload is cleared at start and by your next message', async ($, on) => {
+  const { statuses } = world(on)
+  // A reload runs session.start again with no streaks held.
+  await start($)
+  expect(statuses).toEqual([undefined])
+  await $.prompt.submit({ text: 'keep going', wait: false, origin: { kind: 'composer' } })
+  expect(statuses).toEqual([undefined, undefined])
+  // A background task's notification is not you: nothing changes.
+  await $.prompt.submit({ text: 'task finished', wait: false, origin: { kind: 'task-notification' } })
+  expect(statuses).toEqual([undefined, undefined])
+})
+
 test('an Edit that keeps missing its text is sealed until the file is read again', async ($, on) => {
   const { ran, outputs } = world(on)
   await start($)

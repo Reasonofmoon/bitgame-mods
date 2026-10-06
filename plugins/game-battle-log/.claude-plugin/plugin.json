@@ -1,8 +1,8 @@
 {
   "name": "game-battle-log",
   "displayName": "GAME MODE · Battle Log",
-  "version": "0.1.0",
-  "description": "Tool rows as an 8-bit battle log: HIT, CRIT (file changed), MISS with the error's first lines, BLOCK when a guard refused; failed tool groups unfold by themselves",
+  "version": "0.1.1",
+  "description": "Tool rows as an 8-bit battle log: HIT, CRIT (file changed), MISS with the lines that say what failed, BLOCK when a guard refused; failed tool groups unfold by themselves",
   "author": { "name": "Reason of Moon", "url": "https://github.com/Reasonofmoon" },
   "homepage": "https://github.com/Reasonofmoon/bitgame-mods/tree/main/plugins/game-battle-log",
   "repository": "https://github.com/Reasonofmoon/bitgame-mods",

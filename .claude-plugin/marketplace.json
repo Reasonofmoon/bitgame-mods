@@ -3,7 +3,7 @@
   "owner": { "name": "Reason of Moon", "url": "https://github.com/Reasonofmoon" },
   "metadata": {
     "description": "GAME MODE for Claude Code: an 8-bit look where every piece does a job (HUD, battle log, three guards, save point, sound cues)",
-    "version": "0.1.0"
+    "version": "0.1.1"
   },
   "plugins": [
     {
@@ -17,8 +17,8 @@
     {
       "name": "game-battle-log",
       "source": "./plugins/game-battle-log",
-      "description": "Tool rows as a battle log: HIT, CRIT, MISS with the error's first lines, BLOCK when a guard refused; failed groups unfold",
-      "version": "0.1.0",
+      "description": "Tool rows as a battle log: HIT, CRIT, MISS with the lines that say what failed, BLOCK when a guard refused; failed groups unfold",
+      "version": "0.1.1",
       "category": "development",
       "keywords": ["mod", "game-mode", "transcript", "tool-calls"]
     },
@@ -26,7 +26,7 @@
       "name": "game-trap-guard",
       "source": "./plugins/game-trap-guard",
       "description": "Stops tool calls that would leak a secret: literal keys in commands or source files, cat .env, echo $API_KEY, reading key files",
-      "version": "0.1.0",
+      "version": "0.1.1",
       "category": "development",
       "keywords": ["mod", "game-mode", "security", "secrets", "guard"]
     },
@@ -34,7 +34,7 @@
       "name": "game-barrier",
       "source": "./plugins/game-barrier",
       "description": "Stops irreversible calls: force-push to main, reset --hard, rm -r outside the project, publishing, DROP TABLE, edits outside the project",
-      "version": "0.1.0",
+      "version": "0.1.1",
       "category": "development",
       "keywords": ["mod", "game-mode", "safety", "git", "guard"]
     },
@@ -42,7 +42,7 @@
       "name": "game-loop-breaker",
       "source": "./plugins/game-loop-breaker",
       "description": "Stops the same call failing the same way again and again: warns at LOOP 2/3, blocks once sealed, lifts after a change",
-      "version": "0.1.0",
+      "version": "0.1.1",
       "category": "development",
       "keywords": ["mod", "game-mode", "loops", "retries", "guard"]
     },
@@ -50,7 +50,7 @@
       "name": "game-save-point",
       "source": "./plugins/game-save-point",
       "description": "/save writes an RPG save screen of the session; the next session offers its resume prompt on Tab",
-      "version": "0.1.0",
+      "version": "0.1.1",
       "category": "development",
       "keywords": ["mod", "game-mode", "handoff", "resume", "summary"]
     },
@@ -58,7 +58,7 @@
       "name": "game-earcons",
       "source": "./plugins/game-earcons",
       "description": "8-bit sound cues: a prompt or question waiting on you, a long turn done, an error, a guard refusing, a save (macOS)",
-      "version": "0.1.0",
+      "version": "0.1.1",
       "category": "development",
       "keywords": ["mod", "game-mode", "sound", "notifications"]
     }

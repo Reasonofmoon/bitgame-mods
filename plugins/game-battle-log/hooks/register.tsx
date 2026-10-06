@@ -231,11 +231,20 @@ export function textOf(output: unknown): string {
   return ''
 }
 
+// Lines that only say a failure happened, or say nothing about it.
+const NOISE = /^(?:Exit code \d+|TAP version \d+|.*\b(?:Warning|DeprecationWarning|ExperimentalWarning)\b.*)$/
+// Lines that say what failed.
+const SIGNAL = /\b(?:fail(?:ed|ure|ing)?|errors?|not ok|exception|cannot|can't|denied|not found|no such|expected|assert\w*|blocked|refused|panic\w*|traceback)\b|[✗✕×]/i
+
+/** The lines worth seeing first: what failed, in order; plain lines only when none says so. */
 export function excerpt(text: string, max: number): { lines: string[]; more: number } {
   const all = text
     .replace(/\u001b\[[0-9;]*m/g, '')
     .split('\n')
-    .map(l => l.trimEnd())
+    .map(l => l.trimEnd().replace(/^Error: (?=\S)/, ''))
     .filter(l => l.trim().length > 0)
-  return { lines: all.slice(0, max).map(l => (l.length > 160 ? l.slice(0, 159) + '…' : l)), more: Math.max(0, all.length - max) }
+  const useful = all.filter(l => !NOISE.test(l.trim()))
+  const signal = useful.filter(l => SIGNAL.test(l))
+  const picked = (signal.length > 0 ? signal : useful.length > 0 ? useful : all).slice(0, max)
+  return { lines: picked.map(l => (l.length > 160 ? l.slice(0, 159) + '…' : l)), more: Math.max(0, all.length - picked.length) }
 }

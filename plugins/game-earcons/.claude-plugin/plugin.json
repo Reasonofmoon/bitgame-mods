@@ -1,7 +1,7 @@
 {
   "name": "game-earcons",
   "displayName": "GAME MODE · Earcons",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "8-bit sound cues: a permission prompt or question waiting on you, a long turn finished, an error, a guard refusing a call, a save (macOS)",
   "author": { "name": "Reason of Moon", "url": "https://github.com/Reasonofmoon" },
   "homepage": "https://github.com/Reasonofmoon/bitgame-mods/tree/main/plugins/game-earcons",

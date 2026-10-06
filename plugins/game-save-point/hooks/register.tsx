@@ -308,8 +308,11 @@ export function screenText(s: Save, slot: number, of: number): string {
 type Screen = { title: string; meta: string; done: string[]; todo: string[]; decide: string[]; resume: string; artifacts: string[]; rest: string }
 
 /** Reads screenText back; undefined for a row that is not a save. */
-export function parseScreen(text: string): Screen | undefined {
-  if (!text.startsWith(HEADER)) return undefined
+export function parseScreen(raw: string): Screen | undefined {
+  // The row may lead with the answering plugins' names ("game-save-point: ◆ SAVE POINT · …").
+  const start = raw.indexOf(HEADER)
+  if (start === -1 || start > 120 || raw.slice(0, start).includes('\n')) return undefined
+  const text = raw.slice(start)
   const [head, meta = '', ...lines] = text.split('\n')
   const out: Screen = { title: (head ?? '').slice(HEADER.length), meta, done: [], todo: [], decide: [], resume: '', artifacts: [], rest: '' }
   const sections: Record<string, keyof Pick<Screen, 'done' | 'todo' | 'decide' | 'artifacts'> | 'resume'> = {

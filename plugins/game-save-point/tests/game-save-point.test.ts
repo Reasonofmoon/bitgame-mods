@@ -117,6 +117,19 @@ test('/save writes the save screen and keeps it for the project', async ($, on) 
   expect(list.text).toContain('로그인 버그 수정')
 })
 
+test('a row that leads with the answering plugins\' names is still drawn as the save screen', async ($, on) => {
+  world(on)
+  await start($)
+  const out = await $.command.run(run('save'))
+  const ui = await $.ui.mount({
+    plugin: 'game-save-point',
+    surface: 'terminal',
+    component: 'CommandOutput',
+    props: { command: 'save', args: '', text: 'game-save-point+game-earcons: ' + (out.text ?? ''), isErrored: false },
+  })
+  expect((await ui.findAll({ type: 'Text' }))[0]?.text).toBe('★ SAVE POINT ★  로그인 버그 수정')
+})
+
 test('a reply that is not JSON is kept as the resume prompt', async ($, on) => {
   world(on, { reply: 'Continue with the refresh() fix in src/auth.ts.' })
   await start($)

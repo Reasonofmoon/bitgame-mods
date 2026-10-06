@@ -5,12 +5,12 @@ One rule: **every game element does a job.** Each mod below is placed by where i
 | Phase | Mod | Where | Job | Status |
 |-------|-----|-------|-----|--------|
 | P1 safety & cost | HUD | `AbovePrompt` · `session.measure` | context, plan usage and cost in view; rest/save at low HP | **0.1.0** |
-| | Battle Log | `ToolGroup` · `ToolUse` · `ToolResult` | failures stand out | **0.1.0** |
-| | Trap Guard | `tool.call` | no leaked secrets | **0.1.0** |
-| | Barrier | `tool.call` | no irreversible commands | **0.1.0** |
-| | Loop Breaker | `tool.call` · `prompt.submit` | no blind retries | **0.1.0** |
-| | Save Point | `command.run` · `$.model.fork` · `prompt.suggest` · `CommandOutput` | resume tomorrow | **0.1.0** |
-| | Earcons | `$.audio.play` · `tool.check` · `turn.complete` | know when it needs you | **0.1.0** |
+| | Battle Log | `ToolGroup` · `ToolUse` · `ToolResult` | failures stand out | **0.1.1** |
+| | Trap Guard | `tool.call` | no leaked secrets | **0.1.1** |
+| | Barrier | `tool.call` | no irreversible commands | **0.1.1** |
+| | Loop Breaker | `tool.call` · `prompt.submit` | no blind retries | **0.1.1** |
+| | Save Point | `command.run` · `$.model.fork` · `prompt.suggest` · `CommandOutput` | resume tomorrow | **0.1.1** |
+| | Earcons | `$.audio.play` · `tool.check` · `session.append` · `turn.complete` | know when it needs you | **0.1.1** |
 | P2 keeping track | Stance | `SessionMode` | permission mode as color (plan blue, auto-accept yellow, bypass red) | planned |
 | | Casting | `Spinner` | the action now, elapsed time, this turn's cost | planned |
 | | Clear Time | `TurnDuration` | turn time, actions and cost against your best | planned |

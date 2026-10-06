@@ -61,11 +61,11 @@ export const register: Register = (on, options) => {
       const now = await $.clock.now()
       if (now < passUntil) {
         passUntil = 0
-        $.ui.log(`game-trap-guard: passed once by /trap-guard pass — ${label} (${finding.why})`)
+        $.ui.log(`passed once by /trap-guard pass — ${label} (${finding.why})`)
         return next(e)
       }
       $.ui.toast(`TRAP! ${label} 차단 — ${finding.why} · /trap-guard pass`)
-      $.ui.log(`game-trap-guard: TRAP! blocked ${label} (${finding.why})`)
+      $.ui.log(`TRAP! blocked ${label} (${finding.why})`)
       return { deny: denyText(finding) }
     }
 

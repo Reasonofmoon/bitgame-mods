@@ -1,7 +1,7 @@
 {
   "name": "game-save-point",
   "displayName": "GAME MODE · Save Point",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "/save writes an RPG save screen of the session (cleared, quest log, decisions, resume prompt, items); the next session offers the resume prompt on Tab",
   "author": { "name": "Reason of Moon", "url": "https://github.com/Reasonofmoon" },
   "homepage": "https://github.com/Reasonofmoon/bitgame-mods/tree/main/plugins/game-save-point",
