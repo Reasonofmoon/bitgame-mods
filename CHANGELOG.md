@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.1.1 — 2026-10-06
+
+Fixes for five bugs found in a recorded interactive session with all seven mods (game-hud stays 0.1.0).
+
+- **game-save-point**: `/save` drew as plain text on its first run, because the engine starts a command's output row with the names of the plugins that answered it. The save screen is now found after those names.
+- **game-earcons**: `block` and `save` now come from the rows the session stores (`session.append`). Earcons no longer wraps `/save`, which had added its own name to the save row.
+- **game-battle-log**: `MISS` shows up to three lines that say what failed (`FAIL`, `not ok`, `error`, `expected`, …). Exit codes, `TAP version` and runtime warnings are skipped.
+- **game-trap-guard**, **game-barrier**, **game-loop-breaker**: the log line no longer repeats the plugin's name (`game-barrier: BARRIER! blocked …`).
+- **game-loop-breaker**: the `LOOP n/3` status line is cleared at session start and by your next message even when no streak is held. Before, it stayed after a reload.
+
+### Evidence
+- `claude plugin validate --strict` ✓ ×7 · `claude plugin test` 63/63 ✓ · `tsc` clean ×7
+- Real interactive run of the fixed mods: [`examples/RUN-2026-10-06.md`](examples/RUN-2026-10-06.md) section 3. The barrier refused `git push --force origin master`. The loop breaker refused the 4th identical `ls`, and the next message cleared its status line. `/save` drew the save screen on its first run. A probe mod confirmed the rows earcons listens to.
+
 ## 0.1.0 — 2026-10-06
 
 ### GAME MODE, P1 (seven mods, each 0.1.0)

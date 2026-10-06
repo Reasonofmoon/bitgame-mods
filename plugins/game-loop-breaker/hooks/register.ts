@@ -32,6 +32,8 @@ export const register: Register = (on, options) => {
   let passUntil = 0
 
   on('session.start', async ($, e, next) => {
+    // A reload starts with no streaks, so a LOOP line kept from before it is stale.
+    $.ui.status(undefined)
     const stored = await $.store.get('mode')
     if (stored === 'block' || stored === 'warn' || stored === 'off') mode = stored
     await $.command.register({
@@ -43,8 +45,9 @@ export const register: Register = (on, options) => {
   })
 
   // New words from the person are new information: every streak starts over.
+  // The line is cleared even with no streak held: one may be left from before a reload.
   on('prompt.submit', async ($, e, next) => {
-    if (e.origin?.kind !== 'task-notification' && streaks.size > 0) {
+    if (e.origin?.kind !== 'task-notification') {
       streaks.clear()
       $.ui.status(undefined)
     }
@@ -62,10 +65,10 @@ export const register: Register = (on, options) => {
       if (held !== undefined && held.count >= limit && mode === 'block') {
         if ((await $.clock.now()) < passUntil) {
           passUntil = 0
-          $.ui.log(`game-loop-breaker: passed once by /loop-breaker pass — ${key.label}`)
+          $.ui.log(`passed once by /loop-breaker pass — ${key.label}`)
         } else {
           $.ui.toast(`LOOP! ${key.label} 봉인 — 같은 실패 ${held.count}번 · /loop-breaker pass`)
-          $.ui.log(`game-loop-breaker: blocked ${key.label} after ${held.count} identical failures`)
+          $.ui.log(`LOOP! blocked ${key.label} after ${held.count} identical failures`)
           return { deny: denyText(held) }
         }
       }

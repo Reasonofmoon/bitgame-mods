@@ -114,11 +114,11 @@ export const register: Register = (on, options) => {
       const now = await $.clock.now()
       if (now < passUntil) {
         passUntil = 0
-        $.ui.log(`game-barrier: passed once by /barrier pass — ${label} (${finding.why})`)
+        $.ui.log(`passed once by /barrier pass — ${label} (${finding.why})`)
         return next(e)
       }
       $.ui.toast(`BARRIER! ${label} 차단 — ${finding.why} · /barrier pass`)
-      $.ui.log(`game-barrier: blocked ${label} (${finding.why})`)
+      $.ui.log(`BARRIER! blocked ${label} (${finding.why})`)
       return { deny: denyText(finding) }
     }
 

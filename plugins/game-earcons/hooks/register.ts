@@ -25,6 +25,39 @@ type Player = {
   lastAt: Map<Cue, number>
 }
 
+function textOf(content: unknown): string {
+  if (typeof content === 'string') return content
+  if (!Array.isArray(content)) return ''
+  return content
+    .map(block => {
+      if (block === null || typeof block !== 'object') return ''
+      const b = block as { type?: unknown; text?: unknown; content?: unknown }
+      if (b.type === 'text' && typeof b.text === 'string') return b.text
+      if (b.type === 'tool_result') return textOf(b.content)
+      return ''
+    })
+    .join('\n')
+}
+
+/** The cue a stored row calls for: a guard's refusal, a failed call (hardcore), a new save. */
+export function cueOf(door: string, content: readonly unknown[], intensity: Player['intensity']): Cue | undefined {
+  if (door === 'tool-result') {
+    for (const block of content) {
+      if (block === null || typeof block !== 'object') continue
+      const b = block as { type?: unknown; is_error?: unknown; content?: unknown }
+      if (b.type !== 'tool_result' || b.is_error !== true) continue
+      if (BLOCKED.test(textOf(b.content))) return 'block'
+      if (intensity === 'hardcore') return 'miss'
+    }
+    return undefined
+  }
+  if (door === 'command') {
+    const text = textOf(content as unknown[])
+    if (text.includes('◆ SAVE POINT · ') && text.includes('[PASSWORD]')) return 'save'
+  }
+  return undefined
+}
+
 /** Plays a cue unless muted, or the same cue played less than GAP_MS ago. */
 async function play($: EngineInterface, player: Player, cue: Cue): Promise<void> {
   if (player.intensity === 'off' || player.isMuted || player.gain === 0) return
@@ -61,17 +94,17 @@ export const register: Register = (on, options) => {
     const tool = String(e.tool)
     if (tool === 'AskUserQuestion') await play($, player, 'ask')
     const ran = await next(e)
-    const text = ran.deny ?? (ran.isError === true ? (ran.text ?? '') : '')
-    if (text !== '' && BLOCKED.test(text)) await play($, player, 'block')
-    else if (intensity === 'hardcore' && ran.isError === true) await play($, player, 'miss')
-    else if (intensity === 'hardcore' && ran.deny === undefined && ran.isError !== true && WRITES.has(tool)) await play($, player, 'hit')
+    if (intensity === 'hardcore' && ran.deny === undefined && ran.isError !== true && WRITES.has(tool)) await play($, player, 'hit')
     return ran
   }).catch(($, e, next) => next(e))
 
-  // The guards also raise a toast; hearing that covers a guard that ran before this hook.
-  on('ui.toast', async ($, e, next) => {
-    if (/^(?:TRAP|BARRIER|LOOP)!/.test(e.text)) await play($, player, 'block')
-    return next(e)
+  // Refusals, failures and saves are heard from the rows the transcript keeps: every row passes
+  // here whichever plugin made it and in whatever order the plugins load.
+  on('session.append', async ($, e, next) => {
+    const stored = await next(e)
+    const cue = cueOf(e.door, e.message.content, intensity)
+    if (cue !== undefined) await play($, player, cue)
+    return stored
   }).catch(($, e, next) => next(e))
 
   on('turn.complete', async ($, e, next) => {
@@ -80,13 +113,6 @@ export const register: Register = (on, options) => {
       else if (e.reason === 'answer' && (intensity === 'hardcore' || e.durationMs >= minTurnMs)) await play($, player, 'done')
     }
     return next(e)
-  }).catch(($, e, next) => next(e))
-
-  on('command.run', { command: 'save' }, async ($, e, next) => {
-    const out = await next(e)
-    const sub = e.args.trim()
-    if (sub !== 'list' && sub !== 'show' && (out.text ?? '').startsWith('◆ SAVE POINT')) await play($, player, 'save')
-    return out
   }).catch(($, e, next) => next(e))
 
   on('command.run', { command: 'earcons' }, async ($, e) => {

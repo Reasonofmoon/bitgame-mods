@@ -1,4 +1,5 @@
 import { expect, mock, test } from 'claude-code/testing'
+import { cueOf } from '../hooks/register'
 import type { Engine } from 'claude-code/testing'
 import type { On } from 'claude-code'
 
@@ -64,39 +65,8 @@ test('casual: long turns say "done", short ones do not, errors say "miss"', asyn
   expect(cues()).toEqual(['sounds/done.wav', 'sounds/miss.wav'])
 })
 
-test('a guard refusal says "block"', async ($, on) => {
-  const { cues } = world(on, { deny: 'game-barrier blocked this call: it discards uncommitted changes (git reset --hard).' })
-  await start($)
-  await $.tool.call({ tool: 'Bash', command: 'git reset --hard' })
-  expect(cues()).toEqual(['sounds/block.wav'])
-})
 
-test('a plain tool failure is quiet in casual', async ($, on) => {
-  const { cues } = world(on, { fail: 'Exit code 1' })
-  await start($)
-  await $.tool.call({ tool: 'Bash', command: 'false' })
-  expect(cues()).toEqual([])
-})
 
-test('hardcore adds failures, file changes and every turn', { options: { intensity: 'hardcore', volume: 0.3 } }, async ($, on) => {
-  const { played, clock } = world(on, { fail: 'Exit code 1' })
-  await start($)
-  await $.tool.call({ tool: 'Bash', command: 'false' })
-  await clock.advance(1000)
-  await $.turn.complete(turn(2_000))
-  expect(played).toEqual([
-    { asset: 'sounds/miss.wav', gain: 0.3 },
-    { asset: 'sounds/done.wav', gain: 0.3 },
-  ])
-})
-
-test('a save says "save"; the list does not', async ($, on) => {
-  const { cues } = world(on)
-  await start($)
-  await $.command.run({ command: 'save', args: '', origin: { kind: 'composer' }, presentation: { isFullscreen: false, columns: 100 } })
-  await $.command.run({ command: 'save', args: 'list', origin: { kind: 'composer' }, presentation: { isFullscreen: false, columns: 100 } })
-  expect(cues()).toEqual(['sounds/save.wav'])
-})
 
 test('the same cue twice within 400 ms plays once', async ($, on) => {
   const { cues } = world(on)
@@ -123,4 +93,33 @@ test('off is silent', { options: { intensity: 'off' } }, async ($, on) => {
   await $.tool.check({ tool: 'Bash', input: { command: 'x' }, tool_use_id: 'toolu_1' })
   await $.turn.complete(turn(60_000, 'error'))
   expect(cues()).toEqual([])
+})
+
+// Refusals, failures and saves are heard from the rows the transcript keeps (session.append).
+const result = (text: string, isError: boolean) => [{ type: 'tool_result', tool_use_id: 'toolu_1', content: text, is_error: isError }]
+
+test('a guard\'s refusal kept as a tool result is "block", in every intensity', () => {
+  const refused = result('game-barrier blocked this call: it discards uncommitted changes (git reset --hard).', true)
+  expect(cueOf('tool-result', refused, 'casual')).toBe('block')
+  expect(cueOf('tool-result', [{ type: 'tool_result', tool_use_id: 't', content: [{ type: 'text', text: 'game-trap-guard blocked this call: …' }], is_error: true }], 'casual')).toBe('block')
+})
+
+test('a plain failure is "miss" only in hardcore; a success is nothing', () => {
+  expect(cueOf('tool-result', result('Exit code 1', true), 'casual')).toBeUndefined()
+  expect(cueOf('tool-result', result('Exit code 1', true), 'hardcore')).toBe('miss')
+  expect(cueOf('tool-result', result('ok', false), 'hardcore')).toBeUndefined()
+})
+
+test('a save point row is "save"; other command output is nothing', () => {
+  const row = (text: string) => [{ type: 'text', text }]
+  expect(cueOf('command', row('<local-command-stdout>◆ SAVE POINT · quest\nSLOT 1/1\n[PASSWORD]\nresume</local-command-stdout>'), 'casual')).toBe('save')
+  expect(cueOf('command', row('1. 2026-10-06 21:25 · quest'), 'casual')).toBeUndefined()
+  expect(cueOf('response', row('◆ SAVE POINT · quoted by Claude\n[PASSWORD]'), 'casual')).toBeUndefined()
+})
+
+test('hardcore: a file change is "hit"', { options: { intensity: 'hardcore', volume: 0.3 } }, async ($, on) => {
+  const { played } = world(on)
+  await start($)
+  await $.tool.call({ tool: 'Write', file_path: '/proj/a.ts', content: 'x' })
+  expect(played).toEqual([{ asset: 'sounds/hit.wav', gain: 0.3 }])
 })

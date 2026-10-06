@@ -6,7 +6,6 @@ Tool rows as an 8-bit battle log, so a failure stands out in a long transcript:
 ▸ 탐색 ×5   READ 3 · GREP 2                         HIT
 ▸ EDIT      src/auth.ts                             CRIT
 ▸ BASH      npm test                                MISS
-  ✗ Exit code 1
   ✗ FAIL src/auth.test.ts
   ✗   2 failed
   … +3줄 (ctrl+o)
@@ -18,7 +17,7 @@ Tool rows as an 8-bit battle log, so a failure stands out in a long transcript:
 |---|---|
 | `HIT` | ran without an error |
 | `CRIT` | Edit / Write / NotebookEdit changed a file |
-| `MISS` | errored; its first three lines are shown and the engine's own error block steps aside |
+| `MISS` | errored; up to three lines that say what failed are shown (`FAIL`, `not ok`, `error`, `expected`, …), exit codes, `TAP version` and runtime warnings are skipped, and the engine's own error block steps aside |
 | `BLOCK` | a GAME MODE guard ([trap guard](../game-trap-guard), [barrier](../game-barrier), [loop breaker](../game-loop-breaker)) refused it |
 | `ESC` · `…` | interrupted · still running |
 
@@ -45,4 +44,4 @@ claude plugin install game-battle-log@bitgame-mods
 
 ## 한국어
 
-도구 실행 줄을 전투 로그처럼 HIT/CRIT/MISS/BLOCK 판정으로 보여줍니다. 실패하면 오류 첫 3줄을 바로 펼치고, 접힌 탐색 묶음에 실패가 있으면 자동으로 펼칩니다.
+도구 실행 줄을 전투 로그처럼 HIT/CRIT/MISS/BLOCK 판정으로 보여줍니다. 실패하면 무엇이 실패했는지 말하는 줄을 최대 3줄 바로 펼치고(종료 코드·경고 줄은 건너뜀), 접힌 탐색 묶음에 실패가 있으면 자동으로 펼칩니다.

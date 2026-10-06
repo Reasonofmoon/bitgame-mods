@@ -114,7 +114,7 @@ Requires **Claude Code 2.1.287 or later** (mods). Built and tested on 2.1.291. C
 | [**game-barrier**](plugins/game-barrier) | `tool.call` (refuses) | `/barrier` · `block` · `warn` · `off` · `pass` |
 | [**game-loop-breaker**](plugins/game-loop-breaker) | `tool.call` · `prompt.submit` | `/loop-breaker` · `reset` · `block` · `warn` · `off` · `pass` |
 | [**game-save-point**](plugins/game-save-point) | `command.run` · `$.model.fork` · `prompt.suggest` · `CommandOutput` | `/save [note\|show\|list]` · `/load [n]` |
-| [**game-earcons**](plugins/game-earcons) | `$.audio.play` · `tool.check` · `turn.complete` | `/earcons` · `test` · `on` · `off` |
+| [**game-earcons**](plugins/game-earcons) | `$.audio.play` · `tool.check` · `session.append` · `turn.complete` | `/earcons` · `test` · `on` · `off` |
 
 What each guard refuses, in one line each (details in each README):
 
@@ -156,7 +156,7 @@ The HUD's `세이브` button runs `/save`; the battle log marks a guard's refusa
 | `git reset --hard` / force-push to main | permission prompt, if asked | if you write it | **refused; one-time `pass` only you can type** |
 | The same failing command, fourth time | runs | rarely | **refused until something changes** |
 | Resume tomorrow | `--continue`, then explain again | — | **`/save` screen; Tab in the next session** |
-| Tests you can run | — | rarely | **60 tests, `claude plugin test`** |
+| Tests you can run | — | rarely | **63 tests, `claude plugin test`** |
 
 If a guard refuses an ordinary command, or misses a case its README lists, it is wrong: [open an issue](https://github.com/Reasonofmoon/bitgame-mods/issues) with the command.
 
@@ -192,7 +192,7 @@ Zero runtime dependencies. The hooks modules run inside Claude Code's own mod en
 **GAME MODE**는 Claude Code를 8비트 게임 화면처럼 꾸미되, **모든 요소가 실제 일을 하도록** 만든 Mod 7종입니다.
 
 - `game-hud`: 프롬프트 위에 HP(남은 컨텍스트)·MP(요금제 한도)·G(비용) 표시. HP가 25% 아래면 휴식(`/compact`)·세이브(`/save`) 버튼
-- `game-battle-log`: 도구 실행을 HIT/CRIT/MISS/BLOCK으로 표시. 실패하면 오류 첫 줄을 바로 펼침
+- `game-battle-log`: 도구 실행을 HIT/CRIT/MISS/BLOCK으로 표시. 실패하면 무엇이 실패했는지 말하는 줄을 바로 펼침
 - `game-trap-guard`: 비밀키 노출(`cat .env`, 코드에 키 직접 쓰기 등)을 실행 전에 차단
 - `game-barrier`: main 강제 push, `reset --hard`, 프로젝트 밖 `rm -rf`, publish 같은 되돌릴 수 없는 명령 차단
 - `game-loop-breaker`: 같은 실패를 그대로 반복하면 4번째 실행을 차단

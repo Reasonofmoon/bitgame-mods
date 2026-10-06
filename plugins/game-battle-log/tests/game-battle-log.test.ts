@@ -79,16 +79,7 @@ test('a failure is a MISS with its first lines, and the result block steps aside
     surface: 'terminal',
     ...row('Bash', { command: 'npm test' }, { isErrored: true, output }),
   })
-  expect(await texts(ui)).toEqual([
-    '▸',
-    'BASH',
-    'npm test',
-    'MISS',
-    '  ✗ Exit code 1',
-    '  ✗ FAIL src/auth.test.ts',
-    '  ✗   2 failed',
-    '  … +2줄 (ctrl+o)',
-  ])
+  expect(await texts(ui)).toEqual(['▸', 'BASH', 'npm test', 'MISS', '  ✗ FAIL src/auth.test.ts', '  ✗   2 failed', '  … +3줄 (ctrl+o)'])
 
   const result = await $.ui.mount({
     plugin: 'game-battle-log',
@@ -97,6 +88,29 @@ test('a failure is a MISS with its first lines, and the result block steps aside
     props: { tool_use_id: 'toolu_1', tool: 'Bash', output, isErrored: true },
   })
   expect((await result.drawn()) as unknown).toEqual({ type: 'Box' })
+})
+
+test('the excerpt skips exit codes and warnings for the lines that say what failed', async ($, on) => {
+  world(on)
+  await start($)
+  const output = [
+    'Error: Exit code 1',
+    'TAP version 13',
+    '# (node:5288) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///tmp/x is not specified',
+    '# Subtest: a fresh token is not expired',
+    'not ok 1 - a fresh token is not expired',
+    "  error: 'Expected values to be strictly equal:\n\ntrue !== false\n'",
+    'ok 2 - an old token is expired',
+    'not ok 3 - refresh keeps seconds',
+  ].join('\n')
+  const ui = await $.ui.mount({ plugin: 'game-battle-log', surface: 'terminal', ...row('Bash', { command: 'node --test' }, { isErrored: true, output }) })
+  expect((await texts(ui)).slice(4)).toEqual([
+    '  ✗ not ok 1 - a fresh token is not expired',
+    "  ✗   error: 'Expected values to be strictly equal:",
+    '  ✗ not ok 3 - refresh keeps seconds',
+    // 10 non-empty lines, 3 shown
+    '  … +7줄 (ctrl+o)',
+  ])
 })
 
 test('a refusal by a GAME MODE guard is a BLOCK', async ($, on) => {
