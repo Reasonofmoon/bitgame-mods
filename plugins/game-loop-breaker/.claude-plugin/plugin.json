@@ -1,0 +1,28 @@
+{
+  "name": "game-loop-breaker",
+  "displayName": "GAME MODE · Loop Breaker",
+  "version": "0.1.0",
+  "description": "Stops the same call failing the same way again and again: warns at LOOP 2/3, blocks the next identical run once sealed, lifts after a change or a new message",
+  "author": { "name": "Reason of Moon", "url": "https://github.com/Reasonofmoon" },
+  "homepage": "https://github.com/Reasonofmoon/bitgame-mods/tree/main/plugins/game-loop-breaker",
+  "repository": "https://github.com/Reasonofmoon/bitgame-mods",
+  "license": "MIT",
+  "keywords": ["mod", "game-mode", "loops", "retries", "guard"],
+  "userConfig": {
+    "mode": {
+      "type": "string",
+      "title": "Mode",
+      "description": "block refuses the next identical run once sealed; warn lets it run with a note; off stops counting. /loop-breaker changes it for later sessions too",
+      "default": "block",
+      "options": ["block", "warn", "off"]
+    },
+    "limit": {
+      "type": "number",
+      "title": "Seal after",
+      "description": "Identical failures in a row before the next identical run is blocked",
+      "default": 3,
+      "min": 2,
+      "max": 10
+    }
+  }
+}

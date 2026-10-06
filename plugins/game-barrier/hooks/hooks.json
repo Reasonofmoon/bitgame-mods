@@ -1,0 +1,4 @@
+{
+  "description": "GAME MODE · BARRIER hooks module",
+  "modules": ["./register.ts"]
+}

@@ -1,0 +1,4 @@
+{
+  "description": "GAME MODE · TRAP GUARD hooks module",
+  "modules": ["./register.ts"]
+}

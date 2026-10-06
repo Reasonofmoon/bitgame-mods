@@ -1,0 +1,28 @@
+{
+  "name": "game-battle-log",
+  "displayName": "GAME MODE · Battle Log",
+  "version": "0.1.0",
+  "description": "Tool rows as an 8-bit battle log: HIT, CRIT (file changed), MISS with the error's first lines, BLOCK when a guard refused; failed tool groups unfold by themselves",
+  "author": { "name": "Reason of Moon", "url": "https://github.com/Reasonofmoon" },
+  "homepage": "https://github.com/Reasonofmoon/bitgame-mods/tree/main/plugins/game-battle-log",
+  "repository": "https://github.com/Reasonofmoon/bitgame-mods",
+  "license": "MIT",
+  "keywords": ["mod", "game-mode", "transcript", "tool-calls"],
+  "types": "./types/index.d.ts",
+  "userConfig": {
+    "intensity": {
+      "type": "string",
+      "title": "Intensity",
+      "description": "off leaves tool rows to the engine; casual draws short verdicts (HIT, MISS); hardcore draws game phrasing (CLAUDE의 BASH! … MISS…)",
+      "default": "casual",
+      "options": ["off", "casual", "hardcore"]
+    },
+    "palette": {
+      "type": "string",
+      "title": "Palette",
+      "description": "nes, gameboy and amber are made for dark terminals; theme follows your Claude Code theme (use it on a light background)",
+      "default": "nes",
+      "options": ["nes", "gameboy", "amber", "theme"]
+    }
+  }
+}

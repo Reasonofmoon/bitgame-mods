@@ -1,0 +1,51 @@
+{
+  "name": "game-hud",
+  "displayName": "GAME MODE · HUD",
+  "version": "0.1.0",
+  "description": "8-bit HUD above the prompt: HP = context left, MP = plan usage left, G = session cost, with rest and save buttons when HP runs low",
+  "author": { "name": "Reason of Moon", "url": "https://github.com/Reasonofmoon" },
+  "homepage": "https://github.com/Reasonofmoon/bitgame-mods/tree/main/plugins/game-hud",
+  "repository": "https://github.com/Reasonofmoon/bitgame-mods",
+  "license": "MIT",
+  "keywords": ["mod", "game-mode", "hud", "context", "cost"],
+  "types": "./types/index.d.ts",
+  "userConfig": {
+    "intensity": {
+      "type": "string",
+      "title": "Intensity",
+      "description": "off hides the band; casual draws LV/HP/MP/G and the low-HP row; hardcore adds EXP and the turn count",
+      "default": "casual",
+      "options": ["off", "casual", "hardcore"]
+    },
+    "palette": {
+      "type": "string",
+      "title": "Palette",
+      "description": "nes, gameboy and amber are made for dark terminals; theme follows your Claude Code theme (use it on a light background)",
+      "default": "nes",
+      "options": ["nes", "gameboy", "amber", "theme"]
+    },
+    "lowHp": {
+      "type": "number",
+      "title": "Low HP (%)",
+      "description": "Show the rest/save row and a toast when context left drops to this percent",
+      "default": 25,
+      "min": 5,
+      "max": 60
+    },
+    "currency": {
+      "type": "string",
+      "title": "Currency",
+      "description": "usd shows the cost ledger as kept; krw converts it with krwPerUsd",
+      "default": "usd",
+      "options": ["usd", "krw"]
+    },
+    "krwPerUsd": {
+      "type": "number",
+      "title": "KRW per USD",
+      "description": "Rate used when currency is krw",
+      "default": 1400,
+      "min": 1,
+      "max": 100000
+    }
+  }
+}

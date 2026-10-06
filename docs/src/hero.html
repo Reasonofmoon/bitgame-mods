@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<style>
+  @font-face { font-family: 'Galmuri11'; src: url('fonts/Galmuri11.woff2') format('woff2'); font-weight: 400; }
+  @font-face { font-family: 'Galmuri11'; src: url('fonts/Galmuri11-Bold.woff2') format('woff2'); font-weight: 700; }
+  :root { --bg:#000; --win:#1c2a8a; --edge:#fcfcfc; --edge2:#5060d8; --title:#f8d830; --ok:#58d854;
+          --warn:#fca044; --bad:#f83800; --info:#3cbcfc; --dim:#a4a4a4; --text:#fcfcfc; --track:#0b1250; }
+  * { margin:0; box-sizing:border-box; }
+  body { width:1600px; height:600px; background:var(--bg); color:var(--text); overflow:hidden; position:relative;
+         font-family:'Galmuri11',monospace; -webkit-font-smoothing:none; }
+  .stars span { position:absolute; width:6px; height:6px; background:var(--edge2); }
+  .left { position:absolute; left:84px; top:66px; width:600px; }
+  .kicker { font-size:18px; color:var(--info); letter-spacing:2px; }
+  h1 { margin-top:30px; font-size:96px; font-weight:700; line-height:1; color:var(--title); text-shadow:6px 6px 0 var(--edge2); letter-spacing:4px; }
+  .tag { margin-top:34px; font-size:36px; }
+  .ko { margin-top:14px; font-size:24px; color:var(--dim); }
+  .chips { margin-top:40px; display:flex; flex-wrap:wrap; gap:12px; width:560px; }
+  .chip { font-size:18px; padding:8px 12px; border:3px solid var(--edge2); color:var(--text); }
+  .chip.g { border-color:var(--bad); color:var(--warn); }
+  .win { position:absolute; right:78px; top:56px; width:780px; height:488px; background:var(--win);
+         box-shadow:0 0 0 6px var(--edge), 0 0 0 12px var(--edge2); padding:22px 26px; display:flex; flex-direction:column; gap:10px; }
+  .row { display:flex; gap:14px; font-size:18px; align-items:baseline; white-space:nowrap; }
+  .row .k { width:120px; font-weight:700; }
+  .row .s { flex:1; color:var(--dim); overflow:hidden; text-overflow:ellipsis; }
+  .row .v { width:72px; text-align:right; font-weight:700; }
+  .err { font-size:18px; padding-left:30px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .hud { margin-top:auto; padding:12px 14px; background:var(--track); box-shadow:0 0 0 3px var(--edge2); display:flex; gap:22px; font-size:18px; white-space:nowrap; }
+  .prompt { font-size:18px; padding:8px 12px; border:3px solid var(--dim); }
+  .blink { color:var(--title); }
+</style></head>
+<body>
+<div class="stars">
+  <span style="left:720px;top:40px"></span><span style="left:760px;top:560px;background:#3cbcfc"></span>
+  <span style="left:40px;top:520px"></span><span style="left:640px;top:300px;background:#3cbcfc"></span>
+  <span style="left:1560px;top:24px"></span><span style="left:30px;top:30px;background:#3cbcfc"></span>
+</div>
+<div class="left">
+  <div class="kicker">▶ BITGAME-MODS · CLAUDE CODE</div>
+  <h1>GAME<br>MODE</h1>
+  <div class="tag">8-bit looks, real jobs.</div>
+  <div class="ko">모든 픽셀이 일을 한다 · 7 mods</div>
+  <div class="chips">
+    <div class="chip">HUD</div><div class="chip">BATTLE LOG</div><div class="chip g">TRAP</div>
+    <div class="chip g">BARRIER</div><div class="chip g">LOOP</div><div class="chip">SAVE</div><div class="chip">SOUND</div>
+  </div>
+</div>
+<div class="win">
+  <div class="row"><span class="k" style="color:var(--info)">▸ 탐색 ×3</span><span class="s">READ 2 · GREP 1</span><span class="v" style="color:var(--ok)">HIT</span></div>
+  <div class="row"><span class="k" style="color:var(--info)">▸ EDIT</span><span class="s">src/auth.ts</span><span class="v" style="color:var(--info)">CRIT</span></div>
+  <div class="row"><span class="k">▸ BASH</span><span class="s">npm test</span><span class="v" style="color:var(--bad)">MISS</span></div>
+  <div class="err" style="color:var(--bad)">✗ FAIL src/auth.test.ts · 2 failed</div>
+  <div class="err" style="color:var(--title)">LOOP 2/3 — one more identical failure and it is blocked</div>
+  <div class="row"><span class="k">▸ BASH</span><span class="s">cat .env</span><span class="v" style="color:var(--title)">BLOCK</span></div>
+  <div class="err" style="color:var(--title)">✗ game-trap-guard blocked this call: it prints a .env file …</div>
+  <div class="row"><span class="k">▸ BASH</span><span class="s">git reset --hard</span><span class="v" style="color:var(--title)">BLOCK</span></div>
+  <div class="err" style="color:var(--title)">✗ game-barrier blocked this call: it discards uncommitted changes …</div>
+  <div class="hud">
+    <span style="color:var(--title);font-weight:700">LV 3</span>
+    <span style="color:var(--ok)">HP █████░░░ 62%</span>
+    <span style="color:var(--title)">MP ████░░░░ 48% 5h</span>
+    <span style="color:var(--title)">G $1.24</span>
+  </div>
+  <div class="prompt">&gt; /save<span class="blink">_</span></div>
+</div>
+</body></html>

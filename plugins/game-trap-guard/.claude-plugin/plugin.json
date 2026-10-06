@@ -1,0 +1,20 @@
+{
+  "name": "game-trap-guard",
+  "displayName": "GAME MODE · Trap Guard",
+  "version": "0.1.0",
+  "description": "Stops tool calls that would leak a secret: literal keys in commands or source files, cat .env / echo $API_KEY, reading key files into the conversation",
+  "author": { "name": "Reason of Moon", "url": "https://github.com/Reasonofmoon" },
+  "homepage": "https://github.com/Reasonofmoon/bitgame-mods/tree/main/plugins/game-trap-guard",
+  "repository": "https://github.com/Reasonofmoon/bitgame-mods",
+  "license": "MIT",
+  "keywords": ["mod", "game-mode", "security", "secrets", "guard"],
+  "userConfig": {
+    "mode": {
+      "type": "string",
+      "title": "Mode",
+      "description": "block refuses the call before it runs; warn lets it run and tells Claude and you; off stops checking. /trap-guard changes it for later sessions too",
+      "default": "block",
+      "options": ["block", "warn", "off"]
+    }
+  }
+}
