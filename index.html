@@ -1,0 +1,652 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="bitgame-mods GAME MODE: Claude Code 모드 21종을 쉬운 한국어로 설명하는 발표">
+<meta property="og:title" content="GAME MODE 발표">
+<meta property="og:description" content="Claude Code를 8비트 게임처럼. 화면의 모든 요소가 실제로 일을 합니다.">
+<title>GAME MODE 발표</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+KR:wght@400;500;700&display=swap">
+<style>
+@font-face{font-family:"Galmuri11";src:url(fonts/Galmuri11-Bold.woff2) format("woff2");font-weight:400 700;font-display:swap}
+/* Layout: one slide at a time, NES-style message windows on a night-blue screen, a fixed control bar at the bottom. Deliberately single dark theme (it is a game screen). */
+:root{
+  --bg:#0a0c22;--panel:#131942;--line:#2b3378;--fg:#eef0ff;--muted:#a9b0dc;
+  --win:#22277c;--winline:#a3abff;--wintext:#f4f5ff;--winmuted:#b9bfee;
+  --y:#f8d830;--g:#58d854;--c:#3cbcfc;--o:#fca044;--r:#ff6b6b;
+  --p1:var(--o);--p2:var(--c);--p3:var(--g);
+  --pixel:"Galmuri11","IBM Plex Mono",ui-monospace,monospace;
+  --body:"IBM Plex Sans KR",system-ui,-apple-system,"Apple SD Gothic Neo","Malgun Gothic",sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+  --bar:64px;
+  color-scheme:dark;
+}
+html,body{height:100%}
+body{background:var(--bg);color:var(--fg);font-family:var(--body);font-size:16px;line-height:1.65;margin:0;word-break:keep-all;overflow-wrap:anywhere;
+  background-image:linear-gradient(rgba(255,255,255,.025) 1px,transparent 1px);background-size:100% 4px}
+*{box-sizing:border-box}
+button{font:inherit;color:inherit}
+:focus-visible{outline:3px solid var(--y);outline-offset:2px}
+.deck{padding-inline:clamp(16px,4vw,48px);padding-block:24px calc(var(--bar) + 32px + env(safe-area-inset-bottom,0px))}
+.slide{display:none;max-width:1080px;margin-inline:auto;min-height:calc(100dvh - var(--bar) - 56px);flex-direction:column;justify-content:center;gap:24px}
+.slide.active{display:flex}
+@media (prefers-reduced-motion:no-preference){.slide.active{animation:enter .35s steps(6,end)}}
+@keyframes enter{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+
+/* type */
+.eyebrow{font-family:var(--pixel);font-size:13px;letter-spacing:.08em;color:var(--muted);display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+h1,h2,h3{margin:0;text-wrap:balance;font-weight:700}
+.display{font-family:var(--pixel);font-size:clamp(44px,9vw,96px);line-height:1;letter-spacing:.02em;color:var(--y);text-shadow:4px 4px 0 #b4401c}
+h2{font-family:var(--pixel);font-size:clamp(28px,4.4vw,44px);line-height:1.2}
+h2 .en{font-size:.45em;color:var(--muted);margin-left:10px;letter-spacing:.04em}
+.lead{font-size:clamp(18px,2.2vw,22px);max-width:62ch;color:var(--fg);margin:0}
+.sub{color:var(--muted);margin:0;max-width:65ch}
+p{margin:0}
+
+/* chips */
+.chip{font-family:var(--pixel);font-size:12px;padding:3px 8px;border:2px solid currentColor;line-height:1.3;white-space:nowrap}
+.chip.p1{color:var(--p1)}.chip.p2{color:var(--p2)}.chip.p3{color:var(--p3)}
+
+/* NES message window */
+.win{background:var(--win);color:var(--wintext);border:3px solid var(--winline);box-shadow:0 0 0 3px var(--win),0 0 0 6px var(--bg),6px 6px 0 6px rgba(0,0,0,.45);padding:18px 20px;font-family:var(--pixel);font-size:clamp(14px,1.7vw,17px);line-height:1.8;min-width:0;overflow-x:auto}
+.win .cap{font-size:12px;color:var(--winmuted);letter-spacing:.06em;margin-bottom:8px;display:block}
+.win .ln{white-space:pre-wrap;word-break:keep-all;overflow-wrap:anywhere}
+.t-y{color:var(--y)}.t-g{color:var(--g)}.t-c{color:var(--c)}.t-o{color:var(--o)}.t-r{color:var(--r)}.t-m{color:var(--winmuted)}.t-w{color:var(--wintext)}
+.t-u{color:var(--o);text-decoration:underline wavy var(--o);text-underline-offset:5px}
+.blink{animation:none}
+@media (prefers-reduced-motion:no-preference){.blink{animation:blink 1s steps(1) infinite}}
+@keyframes blink{50%{opacity:0}}
+
+/* buttons */
+.actions{display:flex;flex-wrap:wrap;gap:12px}
+.btn{display:inline-flex;align-items:center;gap:8px;font-family:var(--pixel);font-size:15px;padding:11px 16px;border:3px solid var(--fg);background:transparent;color:var(--fg);cursor:pointer;text-decoration:none;box-shadow:4px 4px 0 var(--line);transition:transform .08s,box-shadow .08s}
+.btn:hover{background:var(--panel)}
+.btn:active{transform:translate(3px,3px);box-shadow:1px 1px 0 var(--line)}
+.btn.primary{background:var(--y);color:#1a1300;border-color:var(--y);box-shadow:4px 4px 0 #b4401c}
+.btn.primary:hover{background:#ffe766}
+.btn .k{font-size:11px;opacity:.75;border:1px solid currentColor;padding:0 4px}
+
+/* title */
+.hero-img{width:100%;max-width:100%;image-rendering:pixelated;border:3px solid var(--line);display:block}
+.kernel{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,9rem),1fr));gap:12px}
+.stat{border:2px solid var(--line);background:var(--panel);padding:12px 14px;display:flex;flex-direction:column;gap:2px;min-width:0}
+.stat b{font-family:var(--pixel);font-size:20px;font-weight:700}
+.stat span{color:var(--muted);font-size:14px}
+
+/* cards grid */
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,15rem),1fr));gap:16px}
+.card{border:2px solid var(--line);background:var(--panel);padding:18px;display:flex;flex-direction:column;gap:8px;min-width:0}
+.card h3{font-family:var(--pixel);font-size:19px;color:var(--y)}
+.card p{color:var(--fg);font-size:15px}
+.card .ex{font-family:var(--mono);font-size:13px;color:var(--muted)}
+
+/* phase map */
+.phases{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,18rem),1fr));gap:16px}
+.phase{border:3px solid currentColor;padding:18px;display:flex;flex-direction:column;gap:12px;background:var(--panel);min-width:0}
+.phase.p1{color:var(--p1)}.phase.p2{color:var(--p2)}.phase.p3{color:var(--p3)}
+.phase h3{font-family:var(--pixel);font-size:20px}
+.phase p{color:var(--fg);font-size:15px}
+.modlist{display:flex;flex-wrap:wrap;gap:8px}
+.modbtn{font-family:var(--pixel);font-size:14px;padding:6px 10px;border:2px solid var(--line);background:var(--bg);color:var(--fg);cursor:pointer;display:inline-flex;gap:6px;align-items:baseline}
+.modbtn:hover{border-color:currentColor;background:var(--line)}
+.modbtn small{color:var(--muted);font-size:11px}
+
+/* mod slide */
+.modhead{display:flex;flex-direction:column;gap:10px}
+.modbody{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,1fr);gap:28px;align-items:start}
+@media (max-width:820px){.modbody{grid-template-columns:minmax(0,1fr)}}
+.explain{display:flex;flex-direction:column;gap:16px}
+.explain .row{display:grid;grid-template-columns:7.5rem minmax(0,1fr);gap:12px;align-items:baseline;border-top:2px dashed var(--line);padding-top:12px}
+.explain .row:first-child{border-top:0;padding-top:0}
+.explain .lbl{font-family:var(--pixel);font-size:14px;color:var(--y)}
+@media (max-width:480px){.explain .row{grid-template-columns:minmax(0,1fr);gap:4px}}
+.cmd{font-family:var(--mono);font-size:14px;color:var(--c)}
+.progress-dots{display:flex;gap:4px;flex-wrap:wrap}
+.progress-dots i{width:10px;height:10px;background:var(--line)}
+.progress-dots i.on{background:currentColor}
+.progress-dots i.done{background:currentColor;opacity:.4}
+
+/* numbers */
+.nums{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,14rem),1fr));gap:14px}
+.num{border:2px solid var(--line);background:var(--panel);padding:16px;display:flex;flex-direction:column;gap:6px;min-width:0}
+.num b{font-family:var(--pixel);font-size:34px;color:var(--y);font-variant-numeric:tabular-nums;line-height:1.1}
+.num .nm{font-family:var(--pixel);font-size:14px;color:var(--fg)}
+.num p{font-size:14px;color:var(--muted)}
+.callout{border:3px solid var(--o);padding:16px 18px;display:flex;flex-direction:column;gap:6px;background:var(--panel)}
+.callout b{color:var(--o);font-family:var(--pixel)}
+
+/* lists */
+.road{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:10px}
+.road li{display:grid;grid-template-columns:2.2rem 8rem minmax(0,1fr);gap:12px;align-items:baseline;border-bottom:2px dashed var(--line);padding-bottom:10px}
+.road .n{font-family:var(--pixel);color:var(--muted)}
+.road .a{font-family:var(--pixel);font-size:14px;color:var(--c)}
+@media (max-width:560px){.road li{grid-template-columns:2rem minmax(0,1fr)}.road .a{grid-column:2}.road .d{grid-column:2}}
+
+/* video */
+.video{width:100%;max-width:100%;border:3px solid var(--line);background:#000;display:block;aspect-ratio:150/92}
+
+/* quiz */
+.quiz{display:flex;flex-direction:column;gap:18px}
+.q{border:2px solid var(--line);background:var(--panel);padding:16px 18px;display:flex;flex-direction:column;gap:10px}
+.q h3{font-size:17px;font-weight:500}
+.q h3 span{font-family:var(--pixel);color:var(--y);margin-right:8px}
+.opts{display:flex;flex-wrap:wrap;gap:8px}
+.opt{border:2px solid var(--line);background:var(--bg);padding:8px 12px;cursor:pointer;text-align:left;font-size:15px}
+.opt:hover{border-color:var(--fg)}
+.opt.right{border-color:var(--g);color:var(--g)}
+.opt.wrong{border-color:var(--r);color:var(--r)}
+.fb{font-size:14px;color:var(--muted);min-height:1.4em}
+.score{font-family:var(--pixel);font-size:18px;color:var(--y)}
+
+/* install */
+.code{position:relative;background:#05061a;border:2px solid var(--line);padding:14px 16px;font-family:var(--mono);font-size:13px;line-height:1.7;color:var(--fg);overflow-x:auto;white-space:pre;margin:0}
+.steps{display:flex;flex-direction:column;gap:18px}
+.step{display:grid;grid-template-columns:3rem minmax(0,1fr);gap:14px}
+.step .no{font-family:var(--pixel);font-size:24px;color:var(--y)}
+.step h3{font-size:18px;margin-bottom:6px}
+.step .body{display:flex;flex-direction:column;gap:8px;min-width:0}
+
+/* bottom bar */
+.bar{position:fixed;left:0;right:0;bottom:0;z-index:20;background:#070818;border-top:3px solid var(--line);padding:10px clamp(12px,3vw,32px) calc(10px + env(safe-area-inset-bottom,0px));display:flex;align-items:center;gap:12px}
+.bar .nav{font-family:var(--pixel);font-size:14px;padding:8px 12px;border:2px solid var(--fg);background:transparent;cursor:pointer;white-space:nowrap}
+.bar .nav:hover{background:var(--panel)}
+.bar .nav[disabled]{opacity:.35;cursor:default}
+.bar .nav.next{background:var(--y);color:#1a1300;border-color:var(--y)}
+.track{flex:1;min-width:0;display:flex;flex-direction:column;gap:4px}
+.track .info{display:flex;justify-content:space-between;gap:8px;font-family:var(--pixel);font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden}
+.track .info span:first-child{overflow:hidden;text-overflow:ellipsis}
+.track .rail{height:8px;background:var(--line);position:relative}
+.track .fill{position:absolute;inset:0 auto 0 0;background:var(--y);width:0}
+@media (max-width:560px){.bar .hide-sm{display:none}}
+
+/* overlays */
+.overlay{position:fixed;inset:0;z-index:40;background:rgba(5,6,20,.92);display:flex;align-items:flex-start;justify-content:center;overflow:auto;padding:max(24px,env(safe-area-inset-top,0px)) 16px 24px}
+.overlay[hidden]{display:none!important}
+.sheet{width:100%;max-width:1000px;display:flex;flex-direction:column;gap:18px}
+.sheet .top{display:flex;justify-content:space-between;align-items:center;gap:12px}
+.toc{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,14rem),1fr));gap:8px}
+.toc button{text-align:left;border:2px solid var(--line);background:var(--panel);padding:10px 12px;cursor:pointer;display:flex;gap:10px;align-items:baseline;min-width:0}
+.toc button:hover,.toc button.cur{border-color:var(--y)}
+.toc .i{font-family:var(--pixel);font-size:12px;color:var(--muted);flex:none;width:2rem}
+.toc .tt{font-size:14px;overflow:hidden;text-overflow:ellipsis}
+.toc .p1{color:var(--p1)}.toc .p2{color:var(--p2)}.toc .p3{color:var(--p3)}
+.shot{max-width:100%;border:3px solid var(--winline);display:block;margin-inline:auto}
+.toast{position:fixed;left:50%;bottom:calc(var(--bar) + 24px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);z-index:50;background:var(--g);color:#052000;font-family:var(--pixel);font-size:14px;padding:10px 16px;border:3px solid #052000;box-shadow:4px 4px 0 #000;max-width:calc(100% - 32px)}
+.toast[hidden]{display:none!important}
+.fallback{width:100%;min-height:8rem;font-family:var(--mono);font-size:13px;background:#05061a;color:var(--fg);border:2px solid var(--line);padding:10px}
+</style>
+</head>
+<body>
+
+
+<main class="deck" id="deck" aria-live="polite"></main>
+
+<nav class="bar" aria-label="슬라이드 이동">
+  <button class="nav" id="prev" type="button" aria-label="이전 슬라이드">◀<span class="hide-sm"> 이전</span></button>
+  <div class="track">
+    <div class="info"><span id="cur-title">GAME MODE</span><span id="counter">1 / 1</span></div>
+    <div class="rail"><div class="fill" id="fill"></div></div>
+  </div>
+  <button class="nav" id="toc-open" type="button">목차</button>
+  <button class="nav next" id="next" type="button" aria-label="다음 슬라이드"><span class="hide-sm">다음 </span>▶</button>
+</nav>
+
+<div class="overlay" id="toc" hidden role="dialog" aria-modal="true" aria-label="목차">
+  <div class="sheet">
+    <div class="top"><h2>목차</h2><button class="btn" id="toc-close" type="button">닫기 <span class="k">ESC</span></button></div>
+    <div class="toc" id="toc-list"></div>
+  </div>
+</div>
+
+<div class="overlay" id="lightbox" hidden role="dialog" aria-modal="true" aria-label="실제 화면">
+  <div class="sheet">
+    <div class="top"><p class="sub" id="lb-cap"></p><button class="btn" id="lb-close" type="button">닫기 <span class="k">ESC</span></button></div>
+    <img class="shot" id="lb-img" alt="">
+  </div>
+</div>
+
+<div class="overlay" id="copybox" hidden role="dialog" aria-modal="true" aria-label="명령 복사">
+  <div class="sheet">
+    <div class="top"><p class="sub">자동 복사가 막혀 있어요. 아래 글을 선택해서 직접 복사하세요.</p><button class="btn" id="cb-close" type="button">닫기 <span class="k">ESC</span></button></div>
+    <textarea class="fallback" id="cb-text" readonly aria-label="복사할 명령"></textarea>
+  </div>
+</div>
+
+<div class="toast" id="toast" hidden role="status"></div>
+
+<script>
+(function(){
+const REPO = 'https://github.com/Reasonofmoon/bitgame-mods';
+const DASH = 'https://claude.ai/code/artifact/c305dc66-0dc5-4f9d-b2df-be95eefe9605';
+const MARKET = 'claude plugin marketplace add Reasonofmoon/bitgame-mods';
+const ALL = ['hud','battle-log','trap-guard','barrier','loop-breaker','save-point','earcons','stance','casting','clear-time','party','quest','minimap','hint','map','spell-check','answer-memory','hedge-mark','item-get','equip','achievement'];
+const BASH_ALL = MARKET + '\nfor m in ' + ALL.join(' ') + '; do\n  claude plugin install "game-$m@bitgame-mods"\ndone';
+const PS_ALL = MARKET + '\n' + ALL.map(m => '"' + m + '"').join(',') + ' |\n  ForEach-Object { claude plugin install "game-$_@bitgame-mods" }';
+
+const SHOTS = {
+  title: ['shots/shot-title.png', '시작 화면: 타이틀, HUD, EQUIP, MAP, STANCE 배지, 밑줄 그어진 ‘적당히’'],
+  battle: ['shots/shot-battle.png', '첫 턴: P1 메시지 창, 완료 조건을 밝히는 CLAUDE 창, 전투 기록과 콤보, CASTING, 파티 창'],
+  guards: ['shots/shot-guards.png', '가드: TRAP! · BARRIER! · COMBO ×14 → BREAK · LOOP!, 힌트 줄의 ‘오류부터 읽기’'],
+  save: ['shots/shot-save.png', '/save: 세이브 화면, PASSWORD COPIED!, 첫 세이브 업적, HUD의 SAVED'],
+  panes: ['shots/shot-panes.png', '다음 세션: 이어진 퀘스트 로그와 미니맵'],
+  hedge: ['shots/shot-hedge.png', '추측 표시: 추측 문장마다 [?], 아래에 ‘추정 3곳’']
+};
+
+const PH = {
+  p1: {name: 'P1 안전·비용', short: '안전·비용', line: '사고를 막고, 남은 기억·사용량·비용을 보여 줍니다.'},
+  p2: {name: 'P2 흐름 파악', short: '흐름 파악', line: 'AI가 지금 무엇을 하는지, 어디까지 왔는지 보여 줍니다.'},
+  p3: {name: 'P3 습관', short: '습관', line: '모호한 요청, 추측, 모델 선택 같은 습관을 바로잡아 줍니다.'}
+};
+
+// Each mod: what you see (lines of [text, color]), plain meaning, why, the game analogy.
+const MODS = [
+ {id:'hud',ko:'HUD 상태창',en:'HUD',ph:'p1',one:'남은 기억, 남은 사용량, 쓴 돈을 늘 보여 주는 상태창',
+  scr:[[['LV 03  ','y'],['EXP █░░  ','g'],['HP ███ 96%  ','g'],['MP ███ 77% 5h  ','c'],['G ₩263','y']],[['READY ','g'],['준비 완료','m']],[['[ 휴식 /compact ]  [ 세이브 /save ]','w']]],
+  mean:'입력창 바로 위에 뜨는 상태창입니다. HP는 AI가 이번 대화에서 더 담아 둘 수 있는 기억의 여유(컨텍스트), MP는 요금제 사용 한도의 남은 양, G는 이번 세션에 쓴 비용(원화)입니다.',
+  why:'대화가 길어지면 AI는 앞 내용을 놓치기 시작합니다. HP가 25% 아래로 떨어지면 HP LOW!와 함께 휴식(/compact, 대화 요약)과 세이브(/save) 버튼을 띄웁니다.',
+  game:'화면 구석의 체력·마나·돈 표시. 피가 바닥나기 전에 쉬라고 알려 주는 것과 같습니다.',cmd:'/hud hide · /hud show',shot:'title'},
+ {id:'battle-log',ko:'전투 기록',en:'Battle Log',ph:'p1',one:'AI가 한 작업을 성공·실패·콤보로 보여 주는 기록',
+  scr:[[['⚔ BATTLE LOG · TURN 2','y']],[['▸ WRITE src/auth.js ','w'],['+4 ','g'],['−4 ','r'],['CRIT ','o'],['COMBO ×3','c']],[['▸ BASH npm test ','w'],['MISS ','r'],['COMBO ×3 → BREAK','r']]],
+  mean:'AI가 파일을 읽고, 고치고, 명령을 실행할 때마다 남는 기록을 전투 기록처럼 보여 줍니다. 성공이 이어지면 콤보, 실패하면 BREAK가 붙고, 파일을 고치면 늘어난 줄(+)과 줄어든 줄(−)을 표시합니다.',
+  why:'수십 줄 기록 속에서 실패한 작업이 바로 눈에 띕니다. 무엇이 얼마나 바뀌었는지도 한 줄로 확인할 수 있습니다.',
+  game:'턴제 RPG의 전투 로그. 치명타(CRIT), 빗나감(MISS), 연속 공격(COMBO)이 그대로 성공, 실패, 연속 성공입니다.',cmd:'/battle-log on · off',shot:'battle'},
+ {id:'trap-guard',ko:'트랩 가드',en:'Trap Guard',ph:'p1',one:'비밀번호·API 키가 새어 나가기 전에 막는 함정 감지기',
+  scr:[[['▸ BASH cat .env  ','w'],['TRAP!','r']],[['game-trap-guard blocked this call','m']],[['비밀값은 명령·파일·대화에 넣지 마세요','o']]],
+  mean:'비밀번호나 API 키 같은 비밀값이 화면, 파일, 명령에 드러나려 하면 실행되기 전에 막습니다. 예를 들면 .env 파일 내용 출력, echo $API_KEY, 개인 키 파일 읽기, 소스 코드에 키를 그대로 적기입니다.',
+  why:'AI가 키를 대화에 출력하거나 코드에 적으면 기록에 남고, 깃허브에 올라가면 유출 사고가 됩니다. 막을 때는 대신 어떻게 하라는 안내도 함께 줍니다.',
+  game:'던전 바닥의 함정 표시. 밟기 전에 경고하고 멈춰 세웁니다.',cmd:'/trap-guard block · warn · off · pass',shot:'guards'},
+ {id:'barrier',ko:'결계',en:'Barrier',ph:'p1',one:'되돌릴 수 없는 명령을 막는 결계',
+  scr:[[['▸ BASH git reset --hard  ','w'],['BARRIER!','r']],[['되돌릴 수 없는 명령입니다','o']],[['사람이 /barrier pass 를 입력해야 1회 허용','m']]],
+  mean:'한 번 실행하면 되돌릴 수 없는 명령을 막습니다. 저장하지 않은 작업 버리기(git reset --hard), main 브랜치에 강제로 덮어쓰기, 프로젝트 밖 폴더 삭제, 패키지 배포(npm publish), 데이터베이스 표 삭제(DROP TABLE) 같은 명령입니다.',
+  why:'꼭 필요할 때는 사람이 직접 /barrier pass 를 입력해 한 번만 허용합니다. AI가 스스로 그 명령을 입력해서 결계를 풀 수는 없습니다.',
+  game:'보스방 앞의 결계. 열쇠는 플레이어만 갖고 있습니다.',cmd:'/barrier block · warn · off · pass',shot:'guards'},
+ {id:'loop-breaker',ko:'루프 차단',en:'Loop Breaker',ph:'p1',one:'같은 실패를 그대로 되풀이하지 못하게 막는 장치',
+  scr:[[['▸ BASH ls /없는폴더  ','w'],['MISS ×3','r']],[['▸ 4번째 같은 시도  ','w'],['LOOP!','r']],[['▸ 오류부터 읽기','y']]],
+  mean:'같은 명령이 같은 방식으로 3번 연속 실패했는데 그사이 아무것도 바뀌지 않았다면, 4번째 시도를 막습니다.',
+  why:'AI가 같은 실수를 그대로 반복하면 시간과 비용만 듭니다. 막힌 뒤에는 방법을 바꾸거나 오류 메시지를 먼저 읽게 됩니다.',
+  game:'같은 벽에 계속 부딪히는 캐릭터를 멈춰 세우는 것과 같습니다.',cmd:'/loop-breaker reset · block · warn · off · pass',shot:'guards'},
+ {id:'save-point',ko:'세이브 포인트',en:'Save Point',ph:'p1',one:'오늘 한 일을 저장하고 내일 비밀번호로 이어 가기',
+  scr:[[['◆ ★ SAVE POINT ★','y']],[['✓ 한 일   ▶ 남은 일   ? 결정할 것','w']],[['PASSWORD ','c'],['SP01-MCS4-MOON ','y'],['COPIED!','g']]],
+  mean:'/save 를 입력하면 지금까지 한 일, 남은 일, 내가 결정해야 할 것, 손댄 파일, 다음에 이어서 붙여 넣을 프롬프트를 한 화면에 정리하고 클립보드에 복사합니다.',
+  why:'다음 날 다시 열면 타이틀 화면에서 이어하기(CONTINUE)를 고르거나 /load 비밀번호 로 그대로 이어 갈 수 있습니다. 처음부터 다시 설명하지 않아도 됩니다.',
+  game:'세이브 포인트와 패스워드 이어하기. 옛날 게임에서 비밀번호를 받아 적던 방식 그대로입니다.',cmd:'/save · /load <비밀번호>',shot:'save'},
+ {id:'earcons',ko:'효과음',en:'Earcons',ph:'p1',one:'내가 봐야 할 순간에 8비트 소리로 알려 주기',
+  scr:[[['♪ ask   ','c'],['AI가 질문하고 기다림','m']],[['♪ done  ','g'],['긴 작업이 끝남','m']],[['♪ block ','r'],['가드가 명령을 막음','m']],[['♪ save  ','y'],['세이브함','m']]],
+  mean:'중요한 순간에 8비트 효과음을 냅니다. AI가 내 답을 기다릴 때, 오래 걸린 작업이 끝났을 때, 가드가 명령을 막았을 때, 세이브했을 때입니다.',
+  why:'다른 창에서 일하고 있어도 소리만 듣고 돌아올 때를 알 수 있습니다. macOS, Windows, Linux에서 모두 작동합니다.',
+  game:'아이템을 먹거나 레벨업할 때 나는 소리와 같습니다.',cmd:'/earcons test · on · off',shot:null},
+ {id:'stance',ko:'스탠스',en:'Stance',ph:'p2',one:'AI가 허락 없이 어디까지 할 수 있는지 보여 주는 색 배지',
+  scr:[[['STANCE  ','m'],['기본','w']],[['STANCE  ','m'],['자동 승인','y']],[['STANCE  ','m'],['계획','c'],['   STANCE  ','m'],['우회','r']]],
+  mean:'AI가 어디까지 허락 없이 실행할 수 있는지(권한 모드)를 화면 오른쪽 아래에 색깔 배지로 보여 줍니다. 노랑은 자동 승인, 파랑은 계획만 세우기, 빨강은 확인 절차 우회입니다.',
+  why:'지금 AI가 묻지 않고 파일을 바꿀 수 있는 상태인지 한눈에 알 수 있습니다. shift+tab 으로 모드를 바꾸면 배지도 따라 바뀝니다.',
+  game:'캐릭터의 자세 표시. 공격 태세인지 방어 태세인지 보여 줍니다.',cmd:null,shot:'save'},
+ {id:'casting',ko:'캐스팅',en:'Casting',ph:'p2',one:'지금 하는 일과 이번 턴 비용을 보여 주는 진행 표시',
+  scr:[[['✶ CASTING · ','c'],['BASH npm test…','w']],[['행동 3 · ','m'],['G +₩120','y'],['  (12s · ↓ 300 tokens)','m']]],
+  mean:'AI가 작업하는 동안 돌아가는 진행 표시에 지금 실행 중인 일, 이번 턴에 한 행동 수, 지금까지 든 비용을 함께 보여 줍니다.',
+  why:'기다리는 동안 AI가 무엇을 하고 있는지, 비용이 얼마나 쌓이는지 바로 볼 수 있습니다.',
+  game:'마법을 외우는 동안 차오르는 시전 게이지.',cmd:null,shot:'battle'},
+ {id:'clear-time',ko:'클리어 타임',en:'Clear Time',ph:'p2',one:'이번 요청이 평소보다 빨랐는지 느렸는지',
+  scr:[[['✦ CLEAR 0:42','g']],[['행동 7 · 이번 턴 ₩312','m']],[['평소보다 −0:13','c']]],
+  mean:'AI가 요청 하나(턴)를 끝낼 때마다 걸린 시간, 행동 수, 비용을 보여 주고, 이 프로젝트의 평소 턴(최근 20번의 중간값)과 비교합니다.',
+  why:'이번 요청이 평소보다 오래 걸렸거나 비쌌는지 알 수 있어서, 다음 요청을 더 작게 나눌지 판단할 수 있습니다.',
+  game:'스테이지 클리어 타임과 평소 기록 비교.',cmd:'/clear-time',shot:null},
+ {id:'party',ko:'파티',en:'Party',ph:'p2',one:'일을 나눠 맡은 보조 AI들의 상태창',
+  scr:[[['PARTY','y']],[['▸ 탐색 담당  ','w'],['ACTIVE ','c'],['████░','m']],[['▸ 검토 담당  ','w'],['CLEAR','g']],[['▸ 테스트 담당 ','w'],['FAIL','r']]],
+  mean:'AI가 일을 나눠 맡긴 보조 AI(서브에이전트)를 파티원처럼 보여 줍니다. 각자의 이름, 진행 중(ACTIVE)·완료(CLEAR)·실패(FAIL) 상태, 도구 사용 횟수, 맡은 일이 나옵니다.',
+  why:'여러 보조 AI가 동시에 일할 때 누가 끝났고 누가 막혔는지 따로 묻지 않아도 됩니다. 화면이 넓으면 첫 보조 AI가 시작될 때 창이 저절로 열립니다.',
+  game:'파티원 체력과 상태를 보여 주는 창.',cmd:'/party',shot:'battle'},
+ {id:'quest',ko:'퀘스트',en:'Quest',ph:'p2',one:'할 일 목록을 퀘스트 로그로',
+  scr:[[['QUEST LOG','y']],[['✓ 로그인 버그 찾기','g']],[['▶ 토큰 만료 수정','c']],[['· README 정리','w']],[['· 커밋하기  ','w'],['BOSS','r']]],
+  mean:'AI가 만든 할 일 목록을 퀘스트 로그로 보여 줍니다. ✓는 끝남, ▶는 진행 중, ·는 아직 안 함이고, 마지막 일에 BOSS가 붙습니다.',
+  why:'대화를 요약(/compact)하거나 다음 날 새로 열어도 목록이 남아 있어서 어디까지 했는지 잃어버리지 않습니다.',
+  game:'퀘스트 일지. 마지막 퀘스트가 보스전입니다.',cmd:'/quest',shot:'panes'},
+ {id:'minimap',ko:'미니맵',en:'Minimap',ph:'p2',one:'AI가 살펴본 파일과 놓친 파일을 보여 주는 지도',
+  scr:[[['MINIMAP','y']],[['■ ','o'],['고침   ','m'],['■ ','c'],['읽음   ','m'],['□ ','w'],['안 열어 봄','m']],[['src/auth.js  ','w'],['×4 다시 읽음','r']]],
+  mean:'프로젝트 파일을 지도처럼 보여 줍니다. 고친 파일, 읽기만 한 파일, 한 번도 안 연 파일이 색으로 구분되고, 3번 이상 다시 읽은 파일에는 횟수가 붙습니다.',
+  why:'AI가 어디를 살펴봤고 어디를 놓쳤는지 알 수 있습니다. 같은 파일을 자꾸 다시 읽는다면 헤매고 있다는 신호입니다.',
+  game:'가 보지 않은 곳은 어둡게 남는 미니맵.',cmd:'/minimap',shot:'panes'},
+ {id:'hint',ko:'힌트',en:'Hint',ph:'p2',one:'지금 눌러야 할 키를 알려 주는 안내줄',
+  scr:[[['▸ ESC 후퇴      ','y'],['작업 중일 때','m']],[['▸ /compact 휴식 ','y'],['HP가 낮을 때','m']],[['▸ 오류부터 읽기 ','y'],['같은 실패 반복','m']],[['▸ /save 세이브  ','y'],['입력창이 비었을 때','m']]],
+  mean:'입력창 아래 안내줄에 지금 상황에서 누르면 좋은 키를 알려 줍니다.',
+  why:'단축키를 외우지 않아도 됩니다. 작업 중이면 멈추는 법(ESC), 기억 여유가 적으면 요약하는 법, 실패가 반복되면 오류부터 보라는 안내가 나옵니다.',
+  game:'화면 아래에 뜨는 조작 안내. 지금 무슨 버튼을 누르면 되는지 알려 줍니다.',cmd:null,shot:'guards'},
+ {id:'map',ko:'맵',en:'Map',ph:'p2',one:'지금 어느 브랜치에서 얼마나 일했는지',
+  scr:[[['MAP ','c'],['master ','w'],['⚠ 보호','y']],[['플레이 1:05','m']]],
+  mean:'화면 맨 아래 상태줄에 지금 작업 중인 브랜치(작업 갈래)와 이번 세션의 작업 시간을 보여 줍니다. main, master처럼 함부로 건드리면 안 되는 브랜치에는 ⚠ 보호가 붙습니다.',
+  why:'중요한 브랜치에서 바로 작업하고 있다는 사실을 놓치지 않게 해 줍니다.',
+  game:'지금 있는 지역 이름과 플레이 시간 표시.',cmd:'/map',shot:'title'},
+ {id:'spell-check',ko:'스펠 체크',en:'Spell Check',ph:'p3',one:'모호한 말과 비밀값을 입력하는 동안 표시',
+  scr:[[['P1 · moon','c']],[['로그인 기능 ','w'],['적당히','u'],[' 고쳐줘','w']],[['⚠ ‘적당히’ — 무엇이 되면 끝인지 적어라','y']]],
+  mean:'내가 입력하는 동안 ‘적당히’, ‘알아서’, ‘대충’, ‘깔끔하게’ 같은 모호한 말에 밑줄을 긋고, 비밀값은 빨갛게 표시합니다.',
+  why:'모호한 요청을 그대로 보내면 AI는 언제 끝낼지 짐작해서 정합니다. 이때는 AI에게 ‘무엇이 되면 끝인지’ 먼저 밝히라는 요청이 함께 전달됩니다.',
+  game:'주문을 틀리게 외우면 알려 주는 마법서.',cmd:null,shot:'title'},
+ {id:'answer-memory',ko:'선택 기억',en:'Answer Memory',ph:'p3',one:'같은 질문에 지난번에 고른 답 표시',
+  scr:[[['? 어떤 방식으로 할까요?','y']],[['  1. 새 파일로 분리','w']],[['  2. 기존 파일에 추가  ','w'],['★ 지난번 선택','y']]],
+  mean:'AI가 객관식으로 물어볼 때, 같은 질문에서 지난번에 내가 고른 답에 ★ 지난번 선택 표시를 붙입니다.',
+  why:'매번 같은 고민을 다시 하지 않아도 되고, 결정이 프로젝트 안에서 일관되게 유지됩니다.',
+  game:'지난번 대화에서 고른 선택지를 기억하는 NPC.',cmd:null,shot:null},
+ {id:'hedge-mark',ko:'추측 표시',en:'Hedge Mark',ph:'p3',one:'AI 답변 속 추측 문장에 [?] 붙이기',
+  scr:[[['CLAUDE','c']],[['설정 파일은 config/ 에 있습니다.','w']],[['아마 캐시 문제일 것 같습니다. ','w'],['[?]','o']],[['? 추정 1곳 · 확인되기 전까지는 가설','o']]],
+  mean:'AI 답변 가운데 ‘아마’, ‘추정’, ‘probably’, ‘might’처럼 추측이 섞인 문장에 [?]를 붙이고, 아래에 추측이 몇 곳인지 셉니다.',
+  why:'확인된 사실과 짐작을 구분해서 읽을 수 있습니다. [?]가 붙은 내용은 확인하기 전까지 가설로 다루면 됩니다.',
+  game:'아직 감정하지 않은 아이템에 붙는 ‘?’ 표시.',cmd:null,shot:'hedge'},
+ {id:'item-get',ko:'아이템 획득',en:'Item Get',ph:'p3',one:'새로 생긴 파일을 아이템처럼 알려 주기',
+  scr:[[['✦ ITEM GET! ','y'],['docs/auth-notes.md','w']],[['새 파일 23줄','m']],[['/inventory ','c'],['이번 세션에 만들고 바꾼 파일','m']]],
+  mean:'AI가 새 파일을 만들면 ITEM GET! 으로 알려 주고, /inventory 를 입력하면 이번 세션에 만들거나 바꾼 파일을 아이템 목록처럼 볼 수 있습니다.',
+  why:'어떤 파일이 새로 생겼는지 놓치지 않습니다. 정리하거나 커밋하기 전에 확인하기 좋습니다.',
+  game:'보물상자를 열 때 뜨는 아이템 획득 메시지와 인벤토리.',cmd:'/inventory',shot:'save'},
+ {id:'equip',ko:'장착',en:'Equip',ph:'p3',one:'지금 쓰는 AI 모델 표시',
+  scr:[[['EQUIP ','c'],['모델 Sonnet 5.5 장착','w']],[['교체는 /model','m']]],
+  mean:'지금 어떤 AI 모델을 쓰고 있는지 세션을 시작할 때와 모델이 바뀔 때마다 보여 줍니다.',
+  why:'모델마다 성능과 비용이 다릅니다. 비싼 모델로 간단한 일을 하거나, 가벼운 모델에 어려운 일을 맡기는 실수를 줄여 줍니다.',
+  game:'지금 장착한 무기 표시.',cmd:null,shot:'title'},
+ {id:'achievement',ko:'업적',en:'Achievement',ph:'p3',one:'좋은 작업 습관에 주는 업적',
+  scr:[[['★ ACHIEVEMENT ','y'],['역전승','w']],[['첫 세이브 · 안전한 커밋 10번','m']],[['10콤보 · HP 10% 전 휴식','m']]],
+  mean:'좋은 작업 습관을 지키면 업적이 뜹니다. 첫 세이브, 가드에 막히지 않은 커밋 10번, 역전승(실패한 명령을 고쳐서 통과), 10번 연속 성공, HP 10%가 되기 전에 휴식하기입니다.',
+  why:'안전하게 일하는 습관에 작은 보상을 줍니다. /achievements 로 모은 업적을 볼 수 있습니다.',
+  game:'도전 과제와 트로피.',cmd:'/achievements',shot:'save'}
+];
+
+const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const screen = lines => lines.map(l => '<div class="ln">' + l.map(([t, c]) => '<span class="t-' + c + '">' + esc(t) + '</span>').join('') + '</div>').join('');
+
+const slides = [];
+const add = (s) => { slides.push(s); return slides.length - 1; };
+
+// 1. Title
+add({key:'start', title:'GAME MODE', html:() => `
+  <div class="eyebrow"><span>bitgame-mods 0.2.0</span><span>·</span><span>Claude Code 모드 21종</span></div>
+  <h1 class="display">GAME MODE<span class="blink">_</span></h1>
+  <p class="lead">AI 코딩 도우미 Claude Code를 8비트 게임 화면처럼 꾸민 모드 모음입니다. 겉모습만 게임이 아닙니다. 화면에 보이는 요소마다 실제로 하는 일이 있습니다.</p>
+  <div class="kernel">
+    <div class="stat"><b class="t-g">HP</b><span>AI가 더 기억할 수 있는 여유</span></div>
+    <div class="stat"><b class="t-c">MP</b><span>요금제 사용 한도의 남은 양</span></div>
+    <div class="stat"><b class="t-y">G</b><span>이번 세션에 쓴 비용</span></div>
+    <div class="stat"><b class="t-r">TRAP!</b><span>위험한 명령을 실제로 멈춤</span></div>
+  </div>
+  <div class="actions">
+    <button class="btn primary" data-go="next" type="button">발표 시작 ▶</button>
+    <button class="btn" data-go="map" type="button">21개 한눈에 보기</button>
+    <button class="btn" data-copy="all-bash" type="button">설치 명령 복사</button>
+    <a class="btn" href="${REPO}" target="_blank" rel="noopener">GitHub 저장소</a>
+  </div>
+  <p class="sub">키보드 ← → 또는 화면 아래 버튼으로 넘기세요. 휴대폰에서는 옆으로 밀어도 됩니다.</p>`});
+
+// 2. Terms
+add({key:'terms', title:'먼저 알아 둘 말 5가지', html:() => `
+  <div class="eyebrow"><span>시작하기 전에</span></div>
+  <h2>먼저 알아 둘 말 5가지</h2>
+  <div class="grid">
+    <div class="card"><h3>Claude Code</h3><p>검은 명령 창(터미널)에서 코드를 읽고, 고치고, 실행하는 AI 도우미입니다.</p></div>
+    <div class="card"><h3>모드 (mod)</h3><p>Claude Code에 끼워 넣는 작은 기능 조각입니다. 21개 중 원하는 것만 골라 설치합니다.</p></div>
+    <div class="card"><h3>컨텍스트</h3><p>AI가 한 대화에서 기억해 둘 수 있는 분량입니다. 가득 차면 앞 내용을 놓칩니다. 게임에서는 HP입니다.</p></div>
+    <div class="card"><h3>턴</h3><p>내가 한 번 요청하고, AI가 그 일을 마칠 때까지의 한 바퀴입니다.</p></div>
+    <div class="card"><h3>가드</h3><p>위험한 명령을 실행 전에 막는 모드입니다. 트랩 가드, 결계, 루프 차단 세 가지가 있습니다.</p><p class="ex">game-… blocked this call</p></div>
+  </div>
+  <div class="actions"><button class="btn primary" data-go="next" type="button">세 갈래로 나눠 보기 ▶</button></div>`});
+
+// 3. Map of phases
+const mapIdx = add({key:'map', title:'21개를 세 갈래로', html:() => `
+  <div class="eyebrow"><span>전체 지도</span><span>·</span><span>이름을 누르면 그 모드로 바로 갑니다</span></div>
+  <h2>21개를 세 갈래로</h2>
+  <div class="phases">
+    ${['p1','p2','p3'].map(p => `
+      <div class="phase ${p}">
+        <h3>${PH[p].name} · ${MODS.filter(m => m.ph === p).length}개</h3>
+        <p>${PH[p].line}</p>
+        <div class="modlist">${MODS.map((m, i) => m.ph === p ? `<button class="modbtn" type="button" data-mod="${m.id}"><small>${String(i + 1).padStart(2, '0')}</small>${esc(m.ko)}</button>` : '').join('')}</div>
+      </div>`).join('')}
+  </div>
+  <div class="actions"><button class="btn primary" data-go="next" type="button">P1부터 차례로 ▶</button></div>`});
+
+// Phase intro + mod slides
+['p1','p2','p3'].forEach(p => {
+  const list = MODS.map((m, i) => ({m, i})).filter(x => x.m.ph === p);
+  add({key:'phase-' + p, title:PH[p].name, phase:p, html:() => `
+    <div class="eyebrow"><span class="chip ${p}">${PH[p].name}</span></div>
+    <h2 style="color:var(--${p})">${PH[p].short}</h2>
+    <p class="lead">${PH[p].line}</p>
+    <div class="grid">${list.map(({m, i}) => `
+      <button class="card" type="button" data-mod="${m.id}" style="text-align:left;cursor:pointer">
+        <span class="eyebrow">MOD ${String(i + 1).padStart(2, '0')} · ${esc(m.en)}</span>
+        <h3>${esc(m.ko)}</h3><p>${esc(m.one)}</p>
+      </button>`).join('')}</div>
+    <div class="actions"><button class="btn primary" data-go="next" type="button">첫 모드 보기 ▶</button></div>`});
+  list.forEach(({m, i}) => {
+    add({key:m.id, title:m.ko, phase:p, mod:i, html:() => `
+      <div class="modhead">
+        <div class="eyebrow"><span class="chip ${p}">${PH[p].name}</span><span>MOD ${String(i + 1).padStart(2, '0')} / 21</span>
+          <span class="progress-dots" style="color:var(--${p})">${list.map(x => `<i class="${x.i === i ? 'on' : (x.i < i ? 'done' : '')}"></i>`).join('')}</span></div>
+        <h2>${esc(m.ko)}<span class="en">${esc(m.en)}</span></h2>
+        <p class="lead">${esc(m.one)}</p>
+      </div>
+      <div class="modbody">
+        <div class="win" role="img" aria-label="${esc(m.ko)} 화면 예시"><span class="cap">화면에 이렇게 보여요</span>${screen(m.scr)}</div>
+        <div class="explain">
+          <div class="row"><span class="lbl">쉬운 뜻</span><p>${esc(m.mean)}</p></div>
+          <div class="row"><span class="lbl">왜 필요해요</span><p>${esc(m.why)}</p></div>
+          <div class="row"><span class="lbl">게임으로 치면</span><p>${esc(m.game)}</p></div>
+          ${m.cmd ? `<div class="row"><span class="lbl">입력 명령</span><p class="cmd">${esc(m.cmd)}</p></div>` : ''}
+        </div>
+      </div>
+      <div class="actions">
+        <button class="btn primary" data-go="next" type="button">다음 ▶</button>
+        ${m.shot ? `<button class="btn" type="button" data-shot="${m.shot}">실제 화면 보기</button>` : ''}
+        <button class="btn" type="button" data-copy="mod:${m.id}">이 모드만 설치 명령 복사</button>
+        <a class="btn" href="${REPO}/tree/main/plugins/game-${m.id}" target="_blank" rel="noopener">설명서(README)</a>
+      </div>`});
+  });
+});
+
+// Limits
+add({key:'limits', title:'알아 둘 한계', html:() => `
+  <div class="eyebrow"><span>정직하게</span></div>
+  <h2>모드가 못 하는 것</h2>
+  <div class="grid">
+    <div class="card"><h3>권한 확인 창</h3><p>Claude Code가 띄우는 허락 창은 모드가 바꿀 수 없습니다. 대신 효과음이 소리로 알려 줍니다.</p></div>
+    <div class="card"><h3>글자만 읽습니다</h3><p>가드는 명령의 글자를 보고 판단합니다. ./deploy.sh 처럼 스크립트 안에 숨은 명령까지는 열어 보지 않습니다.</p></div>
+    <div class="card"><h3>기다리기도 반복처럼 보임</h3><p>서버가 켜질 때까지 같은 확인을 되풀이하면 루프 차단이 4번째에 막을 수 있습니다. 이때는 warn 모드를 쓰면 됩니다.</p></div>
+    <div class="card"><h3>명령만 쓰는 실행</h3><p>화면 없이 실행하는 claude -p 에서는 아무것도 그리지 않습니다. 가드는 그래도 작동합니다.</p></div>
+  </div>
+  <div class="actions"><button class="btn primary" data-go="next" type="button">숫자로 보기 ▶</button></div>`});
+
+// Numbers
+add({key:'numbers', title:'숫자로 보는 저장소', html:() => `
+  <div class="eyebrow"><span>저장소 숫자 읽는 법</span><span>·</span><span>2026-10-09 기준 main</span></div>
+  <h2>숫자로 보는 저장소</h2>
+  <div class="nums">
+    <div class="num"><b>21</b><span class="nm">모드</span><p>따로따로 설치할 수 있는 기능 조각의 수. 그중 3개는 위험한 명령을 막는 가드입니다.</p></div>
+    <div class="num"><b>152</b><span class="nm">테스트</span><p>기능이 의도대로 작동하는지 자동으로 확인하는 검사의 수입니다.</p></div>
+    <div class="num"><b>4,467</b><span class="nm">훅 코드 줄 수</span><p>실제 기능을 만드는 코드의 분량입니다.</p></div>
+    <div class="num"><b>9</b><span class="nm">커밋</span><p>변경을 저장한 기록의 수. 10월 6일과 7일, 이틀 동안 만들었습니다.</p></div>
+    <div class="num"><b>7</b><span class="nm">로드맵 남은 항목</span><p>다음에 하기로 적어 둔 개선 계획입니다.</p></div>
+  </div>
+  <div class="callout"><b>100줄당 테스트</b><p>코드 100줄마다 검사가 몇 개 있는지 나타냅니다. 숫자가 낮을수록 검사가 덜 촘촘합니다. 지금 가장 낮은 모드는 미니맵(1.0, 코드 198줄에 테스트 2개)이고, 그다음은 세이브 포인트(2.1)입니다. 테스트를 보강한다면 미니맵부터 하는 것이 좋습니다.</p></div>
+  <div class="actions">
+    <button class="btn primary" data-go="next" type="button">다음 계획 ▶</button>
+  </div>`});
+
+// Roadmap
+const ROAD = [
+  ['트랩 가드','.envrc 파일과 프로젝트 .npmrc 안의 _authToken 도 잡아내기'],
+  ['결계','명령에 적힌 스크립트(./deploy.sh) 안을 한 단계 열어 보기'],
+  ['루프 차단','서버가 켜지기를 기다리는 반복 확인은 실패 반복으로 보지 않기'],
+  ['세이브 포인트','긴 작업이 끝나면 AI가 스스로 세이브할 수 있게 하기'],
+  ['스탠스','Claude Code가 알림을 추가하면 권한 모드를 정확히 읽기'],
+  ['효과음','업적을 얻을 때 나는 소리 추가'],
+  ['녹화','Windows Terminal과 Galmuri 글꼴로 실행 영상 다시 찍기']
+];
+add({key:'roadmap', title:'다음 계획 7가지', html:() => `
+  <div class="eyebrow"><span>ROADMAP · Next</span></div>
+  <h2>다음 계획 7가지</h2>
+  <ol class="road">${ROAD.map((r, i) => `<li><span class="n">${i + 1}</span><span class="a">${esc(r[0])}</span><span class="d">${esc(r[1])}</span></li>`).join('')}</ol>
+  <div class="actions">
+    <button class="btn primary" data-go="next" type="button">실제 영상 보기 ▶</button>
+    <a class="btn" href="${REPO}/blob/main/docs/ROADMAP.md" target="_blank" rel="noopener">로드맵 원문</a>
+  </div>`});
+
+// Video
+add({key:'video', title:'실제로 돌아가는 모습', html:() => `
+  <div class="eyebrow"><span>Claude Code 2.1.291 녹화</span><span>·</span><span>2분 49초</span></div>
+  <h2>실제로 돌아가는 모습</h2>
+  <video class="video" controls preload="metadata" src="game-mode.mp4" aria-label="GAME MODE 21개 모드 실행 녹화"></video>
+  <p class="sub">21개 모드를 실제 세션에서 한 번에 켜고 녹화한 영상입니다. 소리는 없습니다.</p>
+  <div class="actions">
+    <button class="btn primary" data-go="next" type="button">이해했는지 확인 ▶</button>
+    <button class="btn" type="button" data-shot="guards">가드 장면 캡처</button>
+    <button class="btn" type="button" data-shot="save">세이브 장면 캡처</button>
+  </div>`});
+
+// Quiz
+const QUIZ = [
+  {q:'HUD의 HP가 20%로 떨어졌습니다. 무슨 뜻일까요?', o:['노트북 배터리가 부족하다','AI가 이번 대화에서 더 기억할 여유가 적다','오늘 쓴 돈이 많다'], a:1, why:'HP는 컨텍스트, 즉 AI가 기억할 수 있는 여유입니다. /compact 로 쉬거나 /save 하라는 신호입니다.'},
+  {q:'AI가 git reset --hard 를 실행하려 합니다. 무엇이 일어날까요?', o:['그대로 실행된다','결계가 막고, 사람이 직접 pass를 입력해야 한 번 허용된다','AI가 /barrier pass 를 입력해서 통과한다'], a:1, why:'되돌릴 수 없는 명령은 결계가 막습니다. pass는 사람이 입력할 때만 받아들여집니다.'},
+  {q:'AI 답변 문장 끝에 [?] 가 붙었습니다.', o:['확인된 사실','오타','확인되지 않은 추측'], a:2, why:'추측 표시 모드는 ‘아마’, ‘probably’ 같은 말이 들어간 문장에 [?] 를 붙입니다.'},
+  {q:'/save 를 입력하면 무엇을 받나요?', o:['이어하기 비밀번호와, 다음에 붙여 넣을 프롬프트','파일 백업 압축본','오늘 쓴 비용 영수증'], a:0, why:'세이브 화면에 한 일·남은 일·결정할 것이 정리되고, 비밀번호와 이어하기 프롬프트가 클립보드에 복사됩니다.'}
+];
+add({key:'quiz', title:'확인 퀴즈', html:() => `
+  <div class="eyebrow"><span>4문제</span><span>·</span><span>답을 누르면 바로 해설이 나옵니다</span></div>
+  <h2>확인 퀴즈</h2>
+  <div class="quiz">${QUIZ.map((x, qi) => `
+    <div class="q" data-q="${qi}"><h3><span>Q${qi + 1}</span>${esc(x.q)}</h3>
+      <div class="opts">${x.o.map((o, oi) => `<button class="opt" type="button" data-qi="${qi}" data-oi="${oi}">${esc(o)}</button>`).join('')}</div>
+      <p class="fb" id="fb-${qi}"></p></div>`).join('')}
+  </div>
+  <p class="score" id="score">0 / ${QUIZ.length}</p>
+  <div class="actions"><button class="btn primary" data-go="next" type="button">설치하러 가기 ▶</button><button class="btn" id="quiz-reset" type="button">다시 풀기</button></div>`});
+
+// Install
+add({key:'install', title:'설치하기', html:() => `
+  <div class="eyebrow"><span>PRESS START</span><span>·</span><span>Claude Code 2.1.287 이상</span></div>
+  <h2>지금 설치하기</h2>
+  <div class="steps">
+    <div class="step"><span class="no">1</span><div class="body"><h3>하나만 먼저 써 보기</h3><p class="sub">처음이라면 비밀값 유출을 막는 트랩 가드 하나로 시작하세요.</p>
+      <pre class="code">${esc(MARKET + '\nclaude plugin install game-trap-guard@bitgame-mods')}</pre>
+      <div class="actions"><button class="btn primary" type="button" data-copy="mod:trap-guard">이 명령 복사</button></div></div></div>
+    <div class="step"><span class="no">2</span><div class="body"><h3>21개 모두 설치 (macOS · Linux · Git Bash)</h3>
+      <pre class="code">${esc(BASH_ALL)}</pre>
+      <div class="actions"><button class="btn" type="button" data-copy="all-bash">macOS·Linux용 복사</button><button class="btn" type="button" data-copy="all-ps">Windows PowerShell용 복사</button></div></div></div>
+    <div class="step"><span class="no">3</span><div class="body"><h3>Claude Code 다시 시작</h3><p class="sub">다시 열면 HUD와 타이틀 화면이 뜹니다. 설정은 /plugin configure game-hud@bitgame-mods 처럼 바꿉니다.</p></div></div>
+  </div>
+  <div class="actions">
+    <a class="btn" href="${REPO}" target="_blank" rel="noopener">GitHub 저장소</a>
+    <button class="btn" type="button" data-go="first">처음으로</button>
+  </div>`});
+
+// ---- render
+const deck = document.getElementById('deck');
+deck.innerHTML = slides.map((s, i) => `<section class="slide" id="s${i + 1}" data-i="${i}" aria-label="${esc(s.title)}">${s.html()}</section>`).join('');
+const els = [...deck.querySelectorAll('.slide')];
+const keyIndex = Object.fromEntries(slides.map((s, i) => [s.key, i]));
+
+// TOC
+const toc = document.getElementById('toc-list');
+toc.innerHTML = slides.map((s, i) => `<button type="button" data-goto="${i}"><span class="i">${String(i + 1).padStart(2, '0')}</span><span class="tt ${s.phase || ''}">${s.mod !== undefined ? 'MOD ' + String(s.mod + 1).padStart(2, '0') + ' · ' : ''}${esc(s.title)}</span></button>`).join('');
+
+let cur = 0;
+function show(i, focus) {
+  cur = Math.max(0, Math.min(slides.length - 1, i));
+  els.forEach((el, k) => el.classList.toggle('active', k === cur));
+  document.getElementById('counter').textContent = (cur + 1) + ' / ' + slides.length;
+  document.getElementById('cur-title').textContent = slides[cur].title;
+  document.getElementById('fill').style.width = ((cur + 1) / slides.length * 100) + '%';
+  document.getElementById('prev').disabled = cur === 0;
+  document.getElementById('next').disabled = cur === slides.length - 1;
+  toc.querySelectorAll('button').forEach((b, k) => b.classList.toggle('cur', k === cur));
+  try { history.replaceState(null, '', '#s' + (cur + 1)); } catch (e) {}
+  window.scrollTo(0, 0);
+  if (focus) { const h = els[cur].querySelector('h1,h2'); if (h) { h.setAttribute('tabindex', '-1'); h.focus({preventScroll: true}); } }
+}
+const next = () => show(cur + 1, true), prev = () => show(cur - 1, true);
+document.getElementById('next').addEventListener('click', next);
+document.getElementById('prev').addEventListener('click', prev);
+
+// overlays
+const overlays = ['toc', 'lightbox', 'copybox'].map(id => document.getElementById(id));
+const closeAll = () => overlays.forEach(o => o.hidden = true);
+const anyOpen = () => overlays.some(o => !o.hidden);
+document.getElementById('toc-open').addEventListener('click', () => { document.getElementById('toc').hidden = false; document.getElementById('toc-close').focus(); });
+['toc-close', 'lb-close', 'cb-close'].forEach(id => document.getElementById(id).addEventListener('click', closeAll));
+overlays.forEach(o => o.addEventListener('click', e => { if (e.target === o) closeAll(); }));
+
+// toast + copy
+let toastT;
+function toast(msg) { const t = document.getElementById('toast'); t.textContent = msg; t.hidden = false; clearTimeout(toastT); toastT = setTimeout(() => t.hidden = true, 2200); }
+function textFor(k) {
+  if (k === 'all-bash') return BASH_ALL;
+  if (k === 'all-ps') return PS_ALL;
+  if (k.startsWith('mod:')) return MARKET + '\nclaude plugin install game-' + k.slice(4) + '@bitgame-mods';
+  return '';
+}
+function copy(text, label) {
+  const fallback = () => { const ta = document.getElementById('cb-text'); ta.value = text; document.getElementById('copybox').hidden = false; ta.focus(); ta.select(); };
+  try {
+    if (!navigator.clipboard) return fallback();
+    navigator.clipboard.writeText(text).then(() => toast(label + ' 복사했어요. 터미널에 붙여 넣으세요.')).catch(fallback);
+  } catch (e) { fallback(); }
+}
+
+// quiz state
+const answered = {};
+function score() { document.getElementById('score').textContent = Object.values(answered).filter(Boolean).length + ' / ' + QUIZ.length + (Object.keys(answered).length === QUIZ.length ? (Object.values(answered).every(Boolean) ? '  ★ ALL CLEAR!' : '  다시 풀어 보세요') : ''); }
+
+document.addEventListener('click', e => {
+  const t = e.target.closest('[data-go],[data-mod],[data-goto],[data-shot],[data-copy],.opt,#quiz-reset');
+  if (!t) return;
+  if (t.dataset.go) {
+    const g = t.dataset.go;
+    if (g === 'next') next(); else if (g === 'first') show(0, true); else if (g in keyIndex) show(keyIndex[g], true);
+  } else if (t.dataset.mod) { show(keyIndex[t.dataset.mod], true); }
+  else if (t.dataset.goto) { closeAll(); show(Number(t.dataset.goto), true); }
+  else if (t.dataset.shot) {
+    const s = SHOTS[t.dataset.shot]; const img = document.getElementById('lb-img');
+    img.src = s[0]; img.alt = s[1]; document.getElementById('lb-cap').textContent = s[1];
+    document.getElementById('lightbox').hidden = false; document.getElementById('lb-close').focus();
+  }
+  else if (t.dataset.copy) { const k = t.dataset.copy; copy(textFor(k), k.startsWith('mod:') ? 'game-' + k.slice(4) + ' 설치 명령을' : '설치 명령을'); }
+  else if (t.classList.contains('opt')) {
+    const qi = Number(t.dataset.qi), oi = Number(t.dataset.oi), x = QUIZ[qi];
+    if (qi in answered) return;
+    answered[qi] = oi === x.a;
+    const box = t.closest('.q');
+    box.querySelectorAll('.opt').forEach((b, k) => { if (k === x.a) b.classList.add('right'); else if (k === oi) b.classList.add('wrong'); b.setAttribute('aria-disabled', 'true'); });
+    document.getElementById('fb-' + qi).textContent = (answered[qi] ? '정답! ' : '아쉬워요. ') + x.why;
+    score();
+  }
+  else if (t.id === 'quiz-reset') {
+    Object.keys(answered).forEach(k => delete answered[k]);
+    deck.querySelectorAll('.opt').forEach(b => { b.classList.remove('right', 'wrong'); b.removeAttribute('aria-disabled'); });
+    QUIZ.forEach((_, i) => document.getElementById('fb-' + i).textContent = '');
+    score();
+  }
+});
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') { if (anyOpen()) { closeAll(); e.preventDefault(); } return; }
+  if (anyOpen()) return;
+  const tag = (e.target.tagName || '').toLowerCase();
+  if (tag === 'textarea' || tag === 'input' || tag === 'video') return;
+  if (e.key === 'ArrowRight' || e.key === 'PageDown') { next(); e.preventDefault(); }
+  else if (e.key === 'ArrowLeft' || e.key === 'PageUp') { prev(); e.preventDefault(); }
+  else if (e.key === 'Home') { show(0, true); e.preventDefault(); }
+  else if (e.key === 'End') { show(slides.length - 1, true); e.preventDefault(); }
+});
+
+let tx = null, ty = null;
+deck.addEventListener('touchstart', e => { tx = e.touches[0].clientX; ty = e.touches[0].clientY; }, {passive: true});
+deck.addEventListener('touchend', e => {
+  if (tx === null) return;
+  const dx = e.changedTouches[0].clientX - tx, dy = e.changedTouches[0].clientY - ty; tx = null;
+  if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) * 1.5) { dx < 0 ? next() : prev(); }
+}, {passive: true});
+
+const m = /^#s(\d+)$/.exec(location.hash);
+show(m ? Number(m[1]) - 1 : 0, false);
+})();
+</script>
+
+</body>
+</html>
