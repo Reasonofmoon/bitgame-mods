@@ -1,0 +1,43 @@
+{
+  "name": "game-choice",
+  "displayName": "GAME MODE · Choice",
+  "version": "0.3.0",
+  "description": "The status summary's resume prompt as the prompt box's suggestion (Tab), its decisions as buttons that refine it, Jev-ranked in the background; skill suggestions while typing",
+  "author": {
+    "name": "Reason of Moon",
+    "url": "https://github.com/Reasonofmoon"
+  },
+  "homepage": "https://github.com/Reasonofmoon/bitgame-mods/tree/main/plugins/game-choice",
+  "repository": "https://github.com/Reasonofmoon/bitgame-mods",
+  "license": "MIT",
+  "keywords": [
+    "mod",
+    "game-mode",
+    "resume",
+    "decisions",
+    "skills"
+  ],
+  "types": "./types/index.d.ts",
+  "userConfig": {
+    "shadowMode": {
+      "type": "boolean",
+      "title": "Shadow mode",
+      "description": "Hide Jev's odds and order on the decision buttons while recording what an auto-approver would have picked",
+      "default": true
+    },
+    "skillThreshold": {
+      "type": "number",
+      "title": "Skill suggestion threshold (%)",
+      "description": "Show a skill only when Jev's probability for it is at least this",
+      "default": 50,
+      "min": 10,
+      "max": 95
+    },
+    "skillSuggest": {
+      "type": "boolean",
+      "title": "Suggest skills while typing",
+      "description": "Send drafts to Jev (typesafe.ai) to match them against your skills",
+      "default": true
+    }
+  }
+}
