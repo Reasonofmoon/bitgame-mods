@@ -4,6 +4,11 @@ import type { On } from 'claude-code'
 
 type World = { head?: string; links?: Record<string, string> }
 
+// On a Windows host the engine hands the fs hooks native paths (C:\proj\a.ts): read them as /proj/a.ts.
+function posix(path: string): string {
+  return path.replace(/\\/g, '/').replace(/^[A-Za-z]:(?=\/)/, '')
+}
+
 function world(on: On, opts: World = {}) {
   mock.store(on)
   mock.clock(on, { now: 1_700_000_000_000 })
@@ -21,7 +26,7 @@ function world(on: On, opts: World = {}) {
   })
   on('ui.log', () => ({ value: undefined }))
   // A file system where /proj/new/… does not exist yet and links point where told.
-  on('fs.exists', (_, e) => ({ value: !e.path.startsWith('/proj/new') }))
+  on('fs.exists', (_, e) => ({ value: !posix(e.path).startsWith('/proj/new') }))
   // `resolve: true` answers the path with every link along it followed.
   const resolve = (path: string) => {
     for (const [from, to] of Object.entries(opts.links ?? {})) {
@@ -30,10 +35,10 @@ function world(on: On, opts: World = {}) {
     return path
   }
   on('fs.stat', (_, e) => ({
-    value: { kind: 'dir' as const, size: 0, mtimeMs: 0, isLink: false, realPath: resolve(e.path) },
+    value: { kind: 'dir' as const, size: 0, mtimeMs: 0, isLink: false, realPath: resolve(posix(e.path)) },
   }))
   on('fs.read', (_, e) => {
-    if (e.path === '/proj/.git/HEAD' && opts.head !== undefined) return { value: opts.head }
+    if (posix(e.path) === '/proj/.git/HEAD' && opts.head !== undefined) return { value: opts.head }
     throw new Error('ENOENT')
   })
   on('tool.call', (_, e) => {
@@ -197,8 +202,8 @@ function winWorld(on: On, opts: { head?: string; root?: string } = {}) {
   on('fs.exists', () => ({ value: true }))
   on('fs.stat', (_, e) => ({ value: { kind: 'dir' as const, size: 0, mtimeMs: 0, isLink: false, realPath: e.path } }))
   on('fs.read', (_, e) => {
-    // The test runs on Linux, where the engine reads `c:/…` as relative: match the end.
-    if (e.path.endsWith('c:/users/me/proj/.git/HEAD') && opts.head !== undefined) return { value: opts.head }
+    // On Linux the engine reads `c:/…` as relative, on Windows it hands `c:\…`: match the end.
+    if (e.path.replace(/\\/g, '/').endsWith('c:/users/me/proj/.git/HEAD') && opts.head !== undefined) return { value: opts.head }
     throw new Error('ENOENT')
   })
   on('tool.call', (_, e) => {
