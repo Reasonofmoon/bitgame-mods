@@ -15,9 +15,15 @@ function world(on: On, opts: World = {}) {
   const ran: string[] = []
   const toasts: string[] = []
   const env: Record<string, string> = { HOME: '/home/me', TMPDIR: '/var/folders/xy/T/' }
+  // The session's project and working folder; move() changes both, as entering a worktree does.
+  let folder = '/proj'
+  const move = (to: string) => {
+    folder = to
+  }
   on('session.start', (_, e) => ({ cwd: e.cwd }))
-  on('session.root', () => ({ value: '/proj' }))
-  on('session.cwd', () => ({ value: '/proj' }))
+  on('session.root', () => ({ value: folder }))
+  on('session.cwd', () => ({ value: folder }))
+  on('classic.CwdChanged', () => ({}))
   on('env.get', (_, e) => ({ value: env[e.name] }))
   on('command.register', (_, e) => ({ value: { command: e.name } }))
   on('ui.toast', (_, e) => {
@@ -45,7 +51,7 @@ function world(on: On, opts: World = {}) {
     ran.push(String(e.tool) === 'Bash' ? String((e as { command?: string }).command) : String(e.tool))
     return { result: { stdout: '', stderr: '', interrupted: false } }
   })
-  return { ran, toasts }
+  return { ran, toasts, move }
 }
 
 function refusal(r: { deny?: string; isError?: true; text?: string }): string | undefined {
@@ -155,6 +161,21 @@ test('the allow option adds folders', { options: { allow: '~/notes, /srv/shared'
   await $.tool.call({ tool: 'Write', file_path: '/srv/shared/x.txt', content: 'x' })
   expect(refusal(await $.tool.call({ tool: 'Write', file_path: '/srv/other/x.txt', content: 'x' }))).toContain('outside the project')
   expect(ran).toEqual(['Write', 'Write'])
+})
+
+test('a new working folder is read as the project; the old one is outside', async ($, on) => {
+  const { ran, move } = world(on)
+  await start($)
+  const write = async (file_path: string) => refusal(await $.tool.call({ tool: 'Write', file_path, content: 'x' }))
+  expect(await write('/work/other/a.ts')).toContain('outside the project')
+
+  move('/work/other')
+  await $.classic.CwdChanged({ old_cwd: '/proj', new_cwd: '/work/other' })
+  expect(await write('/work/other/a.ts')).toBeUndefined()
+  expect(await write('/proj/a.ts')).toContain('edits a file outside the project (/proj/a.ts)')
+  expect(await bash($, 'rm -rf /work/other')).toContain('deletes the project root (/work/other)')
+  expect(await bash($, 'rm -rf build')).toBeUndefined()
+  expect(ran).toEqual(['Write', 'rm -rf build'])
 })
 
 test('warn mode runs the call and tells Claude', { options: { mode: 'warn' } }, async ($, on) => {

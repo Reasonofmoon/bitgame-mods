@@ -14,7 +14,8 @@ import type { EngineInterface, Register } from 'claude-code'
 //   data  DROP TABLE/DATABASE/SCHEMA, TRUNCATE TABLE
 //   disk  mkfs, dd of=/dev/…, a fork bomb
 //   files Write/Edit outside the project, ~/.claude and temp folders
-//         (symbolic links resolved)
+//         (symbolic links resolved); the project is read again when the
+//         working folder changes (cd, a worktree)
 // On Windows, paths compare without regard to case or slash direction, and
 // Git Bash drives (/c/…) count as C:\….
 //
@@ -64,43 +65,16 @@ export const register: Register = (on, options) => {
   let home = ''
   let win = false
 
+  const apply = (f: Folders) => {
+    projectRoot = f.projectRoot
+    cwd = f.cwd
+    home = f.home
+    win = f.win
+    roots = f.roots
+  }
+
   on('session.start', async ($, e, next) => {
-    const rawRoot = await $.session.root()
-    const rawCwd = await $.session.cwd()
-    win = isWindowsPath(rawRoot) || isWindowsPath(rawCwd) || (await $.env.get('OS')) === 'Windows_NT'
-    projectRoot = normalize(rawRoot, win)
-    cwd = normalize(rawCwd, win)
-    let rawHome = (await $.env.get('HOME')) ?? ''
-    if (rawHome === '' && win) rawHome = (await $.env.get('USERPROFILE')) ?? ''
-    home = rawHome === '' ? '' : normalize(rawHome, win)
-    const temps = [(await $.env.get('TMPDIR')) ?? '']
-    if (win) temps.push((await $.env.get('TEMP')) ?? '', (await $.env.get('TMP')) ?? '')
-    const listed = [
-      projectRoot,
-      cwd,
-      home ? `${home}/.claude` : '',
-      ...temps,
-      '/tmp',
-      '/private/tmp',
-      '/var/folders',
-      '/private/var/folders',
-      ...String(options.allow ?? '')
-        .split(',')
-        .map(p => p.trim())
-        .filter(p => p.length > 0)
-        .map(p => (p.startsWith('~') ? home + p.slice(1) : p)),
-    ]
-    roots = [...new Set(listed.filter(p => p !== '' && isAbsolute(p, win)).map(p => normalize(p, win)))]
-    for (const root of [...roots]) {
-      const real = await realOf($, root, win)
-      if (real && !roots.includes(real)) roots.push(real)
-    }
-    // Without the project folder among them, every edit would count as outside the project:
-    // check nothing rather than refuse everything.
-    if (!roots.includes(projectRoot) && !roots.includes(cwd)) {
-      roots = []
-      $.ui.log('could not read the project folder, so edits outside the project are not checked this session')
-    }
+    apply(await readFolders($, String(options.allow ?? ''), await $.session.cwd()))
 
     const stored = await $.store.get('mode')
     if (stored === 'block' || stored === 'warn' || stored === 'off') mode = stored
@@ -111,6 +85,12 @@ export const register: Register = (on, options) => {
     })
     return next(e)
   })
+
+  // A new working folder (cd, a worktree) may be another project: read the folders again.
+  on('classic.CwdChanged', async ($, e, next) => {
+    apply(await readFolders($, String(options.allow ?? ''), e.new_cwd || (await $.session.cwd())))
+    return next(e)
+  }).catch(($, e, next) => next(e))
 
   const isAllowed = (path: string) =>
     roots.length === 0 || roots.some(root => path === root || path.startsWith(root.endsWith('/') ? root : root + '/'))
@@ -175,6 +155,48 @@ export const register: Register = (on, options) => {
       ].join('\n'),
     }
   })
+}
+
+type Folders = { projectRoot: string; cwd: string; home: string; win: boolean; roots: string[] }
+
+/** The project root, working folder, home and every folder counted as inside, read now. */
+async function readFolders($: EngineInterface, allow: string, rawCwd: string): Promise<Folders> {
+  const rawRoot = await $.session.root()
+  const win = isWindowsPath(rawRoot) || isWindowsPath(rawCwd) || (await $.env.get('OS')) === 'Windows_NT'
+  const projectRoot = normalize(rawRoot, win)
+  const cwd = normalize(rawCwd, win)
+  let rawHome = (await $.env.get('HOME')) ?? ''
+  if (rawHome === '' && win) rawHome = (await $.env.get('USERPROFILE')) ?? ''
+  const home = rawHome === '' ? '' : normalize(rawHome, win)
+  const temps = [(await $.env.get('TMPDIR')) ?? '']
+  if (win) temps.push((await $.env.get('TEMP')) ?? '', (await $.env.get('TMP')) ?? '')
+  const listed = [
+    projectRoot,
+    cwd,
+    home ? `${home}/.claude` : '',
+    ...temps,
+    '/tmp',
+    '/private/tmp',
+    '/var/folders',
+    '/private/var/folders',
+    ...allow
+      .split(',')
+      .map(p => p.trim())
+      .filter(p => p.length > 0)
+      .map(p => (p.startsWith('~') ? home + p.slice(1) : p)),
+  ]
+  let roots = [...new Set(listed.filter(p => p !== '' && isAbsolute(p, win)).map(p => normalize(p, win)))]
+  for (const root of [...roots]) {
+    const real = await realOf($, root, win)
+    if (real && !roots.includes(real)) roots.push(real)
+  }
+  // Without the project folder among them, every edit would count as outside the project:
+  // check nothing rather than refuse everything.
+  if (!roots.includes(projectRoot) && !roots.includes(cwd)) {
+    roots = []
+    $.ui.log('could not read the project folder, so edits outside the project are not checked this session')
+  }
+  return { projectRoot, cwd, home, win, roots }
 }
 
 function modeOf(value: unknown): Mode {

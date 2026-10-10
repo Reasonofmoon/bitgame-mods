@@ -54,7 +54,7 @@
       "name": "game-barrier",
       "source": "./plugins/game-barrier",
       "description": "Stops irreversible calls: force-push to main, reset --hard, rm -r outside the project, publishing, DROP TABLE, and file edits outside the project",
-      "version": "0.2.0",
+      "version": "0.2.1",
       "category": "development",
       "keywords": [
         "mod",
