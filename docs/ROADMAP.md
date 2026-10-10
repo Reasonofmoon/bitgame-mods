@@ -25,13 +25,16 @@ One rule: **every game element does a job.** Each mod below is placed by where i
 | | Item Get | `ToolResult` · `CommandOutput` | new files stand out; `/inventory` | **0.2.0** |
 | | Equip | `InfoNotice` · `$.ui.log` | the model in view when the session starts and when it changes | **0.2.0** |
 | | Achievement | toast · `CommandOutput` | rewards for good habits | **0.2.0** |
+| P4 continuity | Choice | `turn.complete` · `prompt.suggest` · `AbovePrompt` · Jev | the status summary's resume prompt one Tab away; its decisions as buttons that refine it; skill suggestions while typing | **0.3.0** |
 
 ## Next
 
 - [ ] Trap guard: `.envrc` and project `.npmrc` with `_authToken`
+- [x] Barrier: read the project again when the working folder changes (0.2.1)
 - [ ] Barrier: open scripts named in a command (`./deploy.sh`) one level deep
 - [ ] Loop breaker: recognise polling (`until …; do sleep`) and server boot waits
 - [ ] Save point: a `save_point` tool so Claude can save at the end of a long turn on its own
 - [ ] Stance: an exact source for the mode between prompts, if the engine adds an event for it
 - [ ] Earcons: an `achievement` cue (game-achievement raises a toast only)
+- [ ] Choice: run `scripts/analyze-picks.mjs` from 2026-10-16; turn real auto-approval on only when all four bars pass (fewer than 10 shadow-eligible cards: another week of shadow mode)
 - [ ] A recorded run on Windows Terminal with Galmuri Mono
