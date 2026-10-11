@@ -7,7 +7,7 @@
   &nbsp;·&nbsp;
   <a href="#see-it-fire"><strong>See it fire</strong></a>
   &nbsp;·&nbsp;
-  <a href="#the-21-mods"><strong>The 21 mods</strong></a>
+  <a href="#the-22-mods"><strong>The 22 mods</strong></a>
   &nbsp;·&nbsp;
   <a href="#settings"><strong>Settings</strong></a>
   &nbsp;·&nbsp;
@@ -34,7 +34,7 @@
 
 ---
 
-## Kernel (one rule · 21 mods)
+## Kernel (one rule · 22 mods)
 
 | You see | Mod | What it does |
 |---------|-----|--------------|
@@ -59,6 +59,7 @@
 | `✦ ITEM GET! docs/auth-notes.md · 새 파일 23줄` · `/inventory` | **Item get** | new files stand out; the files made and changed this session as items |
 | `EQUIP 모델 Sonnet 5.5 장착 · 교체는 /model` | **Equip** | which model is on, at the start and whenever it changes |
 | `★ ACHIEVEMENT 역전승` · `/achievements` | **Achievement** | first save, 10 safe commits, a comeback, a 10-call combo, a rest before HP 10% |
+| `다음 할 일 결정` · `Q1. … [관련 파일만] [전체]` · Tab | **Choice** | the `[상태 요약]` resume prompt as the prompt box's suggestion; its decisions as buttons that refine it (Jev-ranked, odds hidden in shadow mode); skill suggestions while typing |
 
 ---
 
@@ -66,7 +67,7 @@
 
 ## See it fire
 
-All 21 mods in recorded Claude Code 2.1.291 sessions (terminal, 150 × 46, 2 min 49 s): [`docs/assets/game-mode-0.2.0.mp4`](docs/assets/game-mode-0.2.0.mp4).
+The 21 mods of 0.2.0 in recorded Claude Code 2.1.291 sessions (terminal, 150 × 46, 2 min 49 s): [`docs/assets/game-mode-0.2.0.mp4`](docs/assets/game-mode-0.2.0.mp4).
 
 | | |
 |---|---|
@@ -99,7 +100,7 @@ macOS, Linux, Git Bash:
 claude plugin marketplace add Reasonofmoon/bitgame-mods
 for m in hud battle-log trap-guard barrier loop-breaker save-point earcons \
          stance casting clear-time party quest minimap hint map \
-         spell-check answer-memory hedge-mark item-get equip achievement; do
+         spell-check answer-memory hedge-mark item-get equip achievement choice; do
   claude plugin install "game-$m@bitgame-mods"
 done
 ```
@@ -110,7 +111,7 @@ Windows PowerShell:
 claude plugin marketplace add Reasonofmoon/bitgame-mods
 "hud","battle-log","trap-guard","barrier","loop-breaker","save-point","earcons",
 "stance","casting","clear-time","party","quest","minimap","hint","map",
-"spell-check","answer-memory","hedge-mark","item-get","equip","achievement" |
+"spell-check","answer-memory","hedge-mark","item-get","equip","achievement","choice" |
   ForEach-Object { claude plugin install "game-$_@bitgame-mods" }
 ```
 
@@ -122,9 +123,9 @@ Requires **Claude Code 2.1.287 or later** (mods). Built and tested on 2.1.291. C
 
 ---
 
-<a id="the-21-mods"></a>
+<a id="the-22-mods"></a>
 
-## The 21 mods
+## The 22 mods
 
 | # | Mod | Hooks | Commands |
 |---|-----|-------|----------|
@@ -149,6 +150,7 @@ Requires **Claude Code 2.1.287 or later** (mods). Built and tested on 2.1.291. C
 | 19 | [**game-item-get**](plugins/game-item-get) | `ToolResult` · `CommandOutput` · `tool.call` | `/inventory` |
 | 20 | [**game-equip**](plugins/game-equip) | `InfoNotice` · `$.ui.log` · `turn.start` · `classic.PostModelSwitch` | — |
 | 21 | [**game-achievement**](plugins/game-achievement) | `tool.call` · `session.append` · `session.compact` · `CommandOutput` | `/achievements` |
+| 22 | [**game-choice**](plugins/game-choice) | `turn.complete` · `prompt.suggest` · `prompt.edit` · `prompt.submit` · `AbovePrompt` · `$.http.fetch` (Jev) · `$.model.fork` | `/choice` |
 
 What each guard refuses, in one line each (details in each README):
 
@@ -174,6 +176,8 @@ Change any of these with `/plugin configure <mod>@bitgame-mods`.
 | `autoOpen` | party | `true` | open the pane when the first subagent starts (144 columns and up) |
 | `protectedBranches` | map | `main,master,production,release/*` | names or patterns marked `⚠ 보호` |
 | `player` | spell check | your login name | the name in `P1 · <name>` |
+| `shadowMode` | choice | `true` | hide Jev's odds and order on the decision buttons; record what an auto-approver would have picked |
+| `skillSuggest` · `skillThreshold` | choice | `true` · `50` | send drafts to Jev for skill suggestions; the probability (%) a skill needs to show |
 
 - **`pass`** lets the next refused call run once (within 10 minutes). `pass`, `warn` and `off` are accepted only when **you** type them, so Claude cannot lift a guard by running the command itself.
 - **Pixel font:** in a terminal the look comes from your terminal's font. Set it to **Galmuri Mono 11** ([quiple/galmuri](https://github.com/quiple/galmuri), OFL) and the whole screen matches.
@@ -197,7 +201,7 @@ The HUD's `세이브` button runs `/save`; the battle log names each guard's ref
 | "Fix it properly" with no finish line | Claude guesses | — | **Claude states the done condition first** |
 | A guess written as a fact | reads like the rest | — | **marked `[?]` and counted** |
 | Resume tomorrow | `--continue`, then explain again | — | **title screen; Tab, or `/load <password>`** |
-| Tests you can run | — | rarely | **152 tests, `claude plugin test`** |
+| Tests you can run | — | rarely | **173 tests, `claude plugin test`** |
 
 If a guard refuses an ordinary command, or misses a case its README lists, it is wrong: [open an issue](https://github.com/Reasonofmoon/bitgame-mods/issues) with the command.
 
@@ -214,6 +218,7 @@ If a guard refuses an ordinary command, or misses a case its README lists, it is
 - **Sound:** Windows plays through PowerShell's `SoundPlayer` (first cue about a second late while PowerShell starts); Linux needs `paplay` (PulseAudio or PipeWire) or `aplay`.
 - **Windows**: paths are compared without regard to case or slash direction (`C:\`, `c:/`, Git Bash `/c/`); tests cover them.
 - **Headless runs** (`claude -p`) draw nothing; the guards still refuse.
+- **Choice** reads only the `[상태 요약]` format (its README shows it). Jev ranking and skill suggestions need `TYPESAFE_API_KEY` and send the summary, or the draft you are typing, to typesafe.ai; set `skillSuggest` off for private work. Without a key the buttons keep Claude's order.
 
 ---
 
@@ -235,10 +240,11 @@ Zero runtime dependencies. The hooks modules run inside Claude Code's own mod en
 
 ## 한국어 요약
 
-**GAME MODE**는 Claude Code를 8비트 게임 화면처럼 꾸미되, **모든 요소가 실제 일을 하도록** 만든 Mod 21종입니다. 원하는 것만 골라 설치해도 됩니다.
+**GAME MODE**는 Claude Code를 8비트 게임 화면처럼 꾸미되, **모든 요소가 실제 일을 하도록** 만든 Mod 22종입니다. 원하는 것만 골라 설치해도 됩니다.
 
 - **안전과 비용 (P1)**: HUD(HP=남은 컨텍스트, MP=요금제 한도, G=비용 ₩), 전투 로그(TURN·COMBO·BREAK·+/− 줄 수·가드별 판정), 트랩 가드(비밀키 노출 차단), 결계(되돌릴 수 없는 명령 차단), 루프 차단, 세이브 포인트(세이브 화면·PASSWORD·타이틀 화면·`/load`), 효과음(macOS·Windows·Linux)
 - **흐름 파악 (P2)**: STANCE(권한 모드 배지), CASTING(지금 하는 일과 이번 턴 비용), CLEAR(평소 대비 턴 시간), PARTY·QUEST·MINIMAP 패널, 힌트 줄, MAP(브랜치와 플레이 시간)
 - **습관 (P3)**: 스펠 체크(모호어 밑줄, 완료 조건 먼저 요청, `P1` 메시지 창), 지난번 선택 ★, 추정 문장 `[?]` 표시, ITEM GET!·`/inventory`, EQUIP(모델), 업적
+- **이어 하기 (P4)**: CHOICE — 답변 끝 `[상태 요약]`의 재개 프롬프트를 입력창 제안(Tab)으로, 결정 항목을 버튼으로 띄우고 고른 대로 프롬프트를 다듬음. Jev(typesafe.ai)가 뒤에서 순위를 매기며 섀도 모드(기본)에서는 확률을 숨기고 기록만 함. 입력 중 맞는 스킬 제안
 
 설치는 위 [Start in 30 seconds](#start-in-30-seconds)의 명령 한 번이면 됩니다. Windows는 PowerShell 블록을 쓰세요.

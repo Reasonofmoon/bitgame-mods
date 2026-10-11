@@ -5,8 +5,8 @@
     "url": "https://github.com/Reasonofmoon"
   },
   "metadata": {
-    "description": "GAME MODE for Claude Code: 21 mods for an 8-bit look where every piece does a job (HUD, battle log, three guards, save point and title screen, sound cues, stance, casting, clear time, party, quest, minimap, hint, map, spell check, answer memory, hedge mark, item get, equip, achievements)",
-    "version": "0.2.0"
+    "description": "GAME MODE for Claude Code: 22 mods for an 8-bit look where every piece does a job (HUD, battle log, three guards, save point and title screen, sound cues, stance, casting, clear time, party, quest, minimap, hint, map, spell check, answer memory, hedge mark, item get, equip, achievements, choice)",
+    "version": "0.3.0"
   },
   "plugins": [
     {
@@ -54,7 +54,7 @@
       "name": "game-barrier",
       "source": "./plugins/game-barrier",
       "description": "Stops irreversible calls: force-push to main, reset --hard, rm -r outside the project, publishing, DROP TABLE, and file edits outside the project",
-      "version": "0.2.0",
+      "version": "0.2.1",
       "category": "development",
       "keywords": [
         "mod",
@@ -295,6 +295,20 @@
         "game-mode",
         "achievements",
         "milestones"
+      ]
+    },
+    {
+      "name": "game-choice",
+      "source": "./plugins/game-choice",
+      "description": "The status summary's resume prompt as the prompt box's suggestion (Tab), its decisions as buttons that refine it, Jev-ranked in the background; skill suggestions while typing",
+      "version": "0.3.0",
+      "category": "development",
+      "keywords": [
+        "mod",
+        "game-mode",
+        "resume",
+        "decisions",
+        "skills"
       ]
     }
   ]

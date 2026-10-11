@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.3.0 — 2026-10-10
+
+One new mod, the 22nd: picking up where the last answer left off. The marketplace is 0.3.0; plugins not listed below stay at 0.2.0.
+
+### P4 · continuity (new)
+- **game-choice** 0.3.0: when an answer ends with a `[상태 요약]`, its item 4 resume prompt becomes the prompt box's suggestion (Tab) and item 3's decisions become buttons above the prompt (`다음 할 일 결정`, `Q1. …`). Each pick appends its sentence; once all are picked, a fork rewrites the prompt into one paragraph. Jev (typesafe.ai, `TYPESAFE_API_KEY`) ranks the options in the background, with an 8-second timeout and Claude's order as the fallback. **Shadow mode** (default) hides the odds and records what an auto-approver would have picked (≥ 90%, confidence ≥ 80%, no risky act); picks go to `~/.claude/game-choice/picks.json` for `scripts/analyze-picks.mjs`. Skill suggestions while typing (`적용` · `맞춤 다듬기`); `/choice` shows the last Jev call.
+
+### Fixed
+- **game-barrier** 0.2.1: the project folder is read again when the working folder changes (`classic.CwdChanged`: `cd`, entering a worktree). Before, the folder read at session start stayed "inside" for the whole session, and the new one counted as outside.
+- **game-barrier** tests: the file system fakes read paths in POSIX form, so the suite also passes on a Windows host (the engine hands them `C:\…` there).
+
+### Evidence
+- `claude plugin validate --strict` ✓ ×22 + marketplace · `claude plugin test` 173/173 ✓ (`scripts/check.sh` on Windows 11, Claude Code 2.1.296)
+
 ## 0.2.0 — 2026-10-07
 
 Every element of the four design boards (save screen, title screen, GAME MODE screen, MOD EQUIPMENT LIST) as a mod that does a job: the seven mods upgraded and fourteen new ones. Acceptance criteria per mod: [`docs/GOALS.md`](docs/GOALS.md). All 21 plugins and the marketplace are 0.2.0.

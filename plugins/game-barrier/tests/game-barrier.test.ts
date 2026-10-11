@@ -4,15 +4,26 @@ import type { On } from 'claude-code'
 
 type World = { head?: string; links?: Record<string, string> }
 
+// On a Windows host the engine hands the fs hooks native paths (C:\proj\a.ts): read them as /proj/a.ts.
+function posix(path: string): string {
+  return path.replace(/\\/g, '/').replace(/^[A-Za-z]:(?=\/)/, '')
+}
+
 function world(on: On, opts: World = {}) {
   mock.store(on)
   mock.clock(on, { now: 1_700_000_000_000 })
   const ran: string[] = []
   const toasts: string[] = []
   const env: Record<string, string> = { HOME: '/home/me', TMPDIR: '/var/folders/xy/T/' }
+  // The session's project and working folder; move() changes both, as entering a worktree does.
+  let folder = '/proj'
+  const move = (to: string) => {
+    folder = to
+  }
   on('session.start', (_, e) => ({ cwd: e.cwd }))
-  on('session.root', () => ({ value: '/proj' }))
-  on('session.cwd', () => ({ value: '/proj' }))
+  on('session.root', () => ({ value: folder }))
+  on('session.cwd', () => ({ value: folder }))
+  on('classic.CwdChanged', () => ({}))
   on('env.get', (_, e) => ({ value: env[e.name] }))
   on('command.register', (_, e) => ({ value: { command: e.name } }))
   on('ui.toast', (_, e) => {
@@ -21,7 +32,7 @@ function world(on: On, opts: World = {}) {
   })
   on('ui.log', () => ({ value: undefined }))
   // A file system where /proj/new/… does not exist yet and links point where told.
-  on('fs.exists', (_, e) => ({ value: !e.path.startsWith('/proj/new') }))
+  on('fs.exists', (_, e) => ({ value: !posix(e.path).startsWith('/proj/new') }))
   // `resolve: true` answers the path with every link along it followed.
   const resolve = (path: string) => {
     for (const [from, to] of Object.entries(opts.links ?? {})) {
@@ -30,17 +41,17 @@ function world(on: On, opts: World = {}) {
     return path
   }
   on('fs.stat', (_, e) => ({
-    value: { kind: 'dir' as const, size: 0, mtimeMs: 0, isLink: false, realPath: resolve(e.path) },
+    value: { kind: 'dir' as const, size: 0, mtimeMs: 0, isLink: false, realPath: resolve(posix(e.path)) },
   }))
   on('fs.read', (_, e) => {
-    if (e.path === '/proj/.git/HEAD' && opts.head !== undefined) return { value: opts.head }
+    if (posix(e.path) === '/proj/.git/HEAD' && opts.head !== undefined) return { value: opts.head }
     throw new Error('ENOENT')
   })
   on('tool.call', (_, e) => {
     ran.push(String(e.tool) === 'Bash' ? String((e as { command?: string }).command) : String(e.tool))
     return { result: { stdout: '', stderr: '', interrupted: false } }
   })
-  return { ran, toasts }
+  return { ran, toasts, move }
 }
 
 function refusal(r: { deny?: string; isError?: true; text?: string }): string | undefined {
@@ -152,6 +163,21 @@ test('the allow option adds folders', { options: { allow: '~/notes, /srv/shared'
   expect(ran).toEqual(['Write', 'Write'])
 })
 
+test('a new working folder is read as the project; the old one is outside', async ($, on) => {
+  const { ran, move } = world(on)
+  await start($)
+  const write = async (file_path: string) => refusal(await $.tool.call({ tool: 'Write', file_path, content: 'x' }))
+  expect(await write('/work/other/a.ts')).toContain('outside the project')
+
+  move('/work/other')
+  await $.classic.CwdChanged({ old_cwd: '/proj', new_cwd: '/work/other' })
+  expect(await write('/work/other/a.ts')).toBeUndefined()
+  expect(await write('/proj/a.ts')).toContain('edits a file outside the project (/proj/a.ts)')
+  expect(await bash($, 'rm -rf /work/other')).toContain('deletes the project root (/work/other)')
+  expect(await bash($, 'rm -rf build')).toBeUndefined()
+  expect(ran).toEqual(['Write', 'rm -rf build'])
+})
+
 test('warn mode runs the call and tells Claude', { options: { mode: 'warn' } }, async ($, on) => {
   const { ran, toasts } = world(on)
   await start($)
@@ -197,8 +223,8 @@ function winWorld(on: On, opts: { head?: string; root?: string } = {}) {
   on('fs.exists', () => ({ value: true }))
   on('fs.stat', (_, e) => ({ value: { kind: 'dir' as const, size: 0, mtimeMs: 0, isLink: false, realPath: e.path } }))
   on('fs.read', (_, e) => {
-    // The test runs on Linux, where the engine reads `c:/…` as relative: match the end.
-    if (e.path.endsWith('c:/users/me/proj/.git/HEAD') && opts.head !== undefined) return { value: opts.head }
+    // On Linux the engine reads `c:/…` as relative, on Windows it hands `c:\…`: match the end.
+    if (e.path.replace(/\\/g, '/').endsWith('c:/users/me/proj/.git/HEAD') && opts.head !== undefined) return { value: opts.head }
     throw new Error('ENOENT')
   })
   on('tool.call', (_, e) => {

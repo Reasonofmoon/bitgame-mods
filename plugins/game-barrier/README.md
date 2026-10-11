@@ -10,7 +10,7 @@ Stops tool calls that cannot be undone from inside the session, **before they ru
 | infra | `terraform destroy`, `kubectl delete`, `helm uninstall` |
 | data | `DROP TABLE/DATABASE/SCHEMA`, `TRUNCATE TABLE` through a database client (`psql`, `mysql`, `sqlite3`, …); `grep "DROP TABLE"` is fine |
 | disk | `mkfs`, `dd of=/dev/…`, a fork bomb |
-| files | Write / Edit / NotebookEdit outside the project, `~/.claude` and temp folders, with symbolic links resolved |
+| files | Write / Edit / NotebookEdit outside the project, `~/.claude` and temp folders, with symbolic links resolved; when the working folder changes (`cd`, a worktree), the project is read again and the old one counts as outside |
 
 Allowed as usual: `rm -rf node_modules dist`, `git push --force-with-lease origin feature/x`, `git reset --soft`, `git restore --staged .`, writes to `/tmp` and plan files under `~/.claude`.
 
@@ -39,7 +39,7 @@ claude plugin install game-barrier@bitgame-mods
 |---|---|
 | `mode` (`block`) | `block` refuses · `warn` runs it and tells Claude and you · `off` |
 | `allow` (empty) | more folders where edits and `rm -r` are fine, comma-separated (`~/notes, /srv/shared`) |
-| `/barrier` | status, with the folders counted as inside |
+| `/barrier` | status, with the folders counted as inside (read again when the working folder changes) |
 | `/barrier block` · `warn` · `off` | change the mode; remembered |
 | `/barrier pass` | let the next refused call run once (within 10 minutes) |
 
