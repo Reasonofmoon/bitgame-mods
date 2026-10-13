@@ -1,0 +1,71 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "name": "bitgame-session-start",
+            "type": "command",
+            "command": "node \"${extensionPath}/runtime/hook-runner.mjs\" SessionStart",
+            "timeout": 5000,
+            "description": "GAME MODE title banner and state initialization"
+          }
+        ]
+      }
+    ],
+    "BeforeAgent": [
+      {
+        "hooks": [
+          {
+            "name": "bitgame-before-agent",
+            "type": "command",
+            "command": "node \"${extensionPath}/runtime/hook-runner.mjs\" BeforeAgent",
+            "timeout": 5000,
+            "description": "GAME MODE spell check (vague word & secret detection)"
+          }
+        ]
+      }
+    ],
+    "BeforeTool": [
+      {
+        "matcher": ".*",
+        "hooks": [
+          {
+            "name": "bitgame-before-tool",
+            "type": "command",
+            "command": "node \"${extensionPath}/runtime/hook-runner.mjs\" BeforeTool",
+            "timeout": 5000,
+            "description": "GAME MODE Trap Guard, Barrier, and Loop Breaker"
+          }
+        ]
+      }
+    ],
+    "AfterTool": [
+      {
+        "matcher": ".*",
+        "hooks": [
+          {
+            "name": "bitgame-after-tool",
+            "type": "command",
+            "command": "node \"${extensionPath}/runtime/hook-runner.mjs\" AfterTool",
+            "timeout": 5000,
+            "description": "GAME MODE Battle Log combo tracker, Item Get, and Loop Breaker streak counter"
+          }
+        ]
+      }
+    ],
+    "AfterAgent": [
+      {
+        "hooks": [
+          {
+            "name": "bitgame-after-agent",
+            "type": "command",
+            "command": "node \"${extensionPath}/runtime/hook-runner.mjs\" AfterAgent",
+            "timeout": 10000,
+            "description": "GAME MODE HUD, Hedge Mark counter, and Jev Choice ranking"
+          }
+        ]
+      }
+    ]
+  }
+}
