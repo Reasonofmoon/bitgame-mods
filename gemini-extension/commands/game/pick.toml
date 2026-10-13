@@ -1,0 +1,4 @@
+description = "GAME MODE: Pick decision options (e.g. /game:pick 1a) from the latest [상태 요약] Choice Card and execute the composed resume prompt"
+prompt = """
+!{node "${extensionPath}/runtime/cli.mjs" pick {{args}}}
+"""

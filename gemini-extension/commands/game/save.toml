@@ -1,0 +1,6 @@
+description = "GAME MODE: Create a Save Point (SP01-XXXX-MOON), copy resume prompt to clipboard, and play 8-bit save sound"
+prompt = """
+Display the following GAME MODE Save Point board verbatim in a code block and confirm the save password:
+
+!{node "${extensionPath}/runtime/cli.mjs" save {{args}}}
+"""

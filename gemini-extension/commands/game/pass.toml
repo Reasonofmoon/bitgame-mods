@@ -1,0 +1,6 @@
+description = "GAME MODE: Grant a 10-minute one-time pass for Trap Guard / Barrier / Loop Breaker, or change guard mode (block|warn|off|reset)"
+prompt = """
+Report the following GAME MODE Guard update to the user in one concise line:
+
+!{node "${extensionPath}/runtime/cli.mjs" pass {{args}}}
+"""

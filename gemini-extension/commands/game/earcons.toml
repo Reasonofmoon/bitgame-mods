@@ -1,0 +1,6 @@
+description = "GAME MODE: Toggle 8-bit sound effects (on|off|test)"
+prompt = """
+Report the following GAME MODE Earcons status in one line:
+
+!{node "${extensionPath}/runtime/cli.mjs" earcons {{args}}}
+"""

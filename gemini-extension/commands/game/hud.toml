@@ -1,0 +1,6 @@
+description = "GAME MODE: Display 8-Bit HUD status board, level, combo, inventory, and achievements"
+prompt = """
+Display the following GAME MODE 8-Bit HUD status board exactly as a code block without running any extra tools, and briefly ask what quest to tackle next:
+
+!{node "${extensionPath}/runtime/cli.mjs" hud {{args}}}
+"""
