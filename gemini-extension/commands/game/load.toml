@@ -1,0 +1,4 @@
+description = "GAME MODE: Load a Save Point by password (or latest save) and resume the quest immediately"
+prompt = """
+!{node "${extensionPath}/runtime/cli.mjs" load {{args}}}
+"""
