@@ -1,0 +1,77 @@
+{
+  "name": "bitgame-mods",
+  "version": "0.2.0",
+  "description": "GAME MODE for Gemini CLI — 8-bit looks, real jobs (Trap Guard, Barrier, Loop Breaker, ANSI HUD, Earcons, Save Point, and Jev Choice).",
+  "contextFileName": "GEMINI.md",
+  "themes": [
+    {
+      "name": "game-mode-nes",
+      "type": "custom",
+      "background": {
+        "primary": "#1c2a8a"
+      },
+      "text": {
+        "primary": "#fcfcfc",
+        "secondary": "#b8b8f0",
+        "link": "#3cbcfc"
+      },
+      "status": {
+        "success": "#58d854",
+        "warning": "#f8d830",
+        "error": "#f83800"
+      },
+      "border": {
+        "default": "#5060d8"
+      },
+      "ui": {
+        "comment": "#b8b8f0"
+      }
+    },
+    {
+      "name": "game-mode-gameboy",
+      "type": "custom",
+      "background": {
+        "primary": "#1e4a1e"
+      },
+      "text": {
+        "primary": "#e0f8d0",
+        "secondary": "#8bac0f",
+        "link": "#c4e890"
+      },
+      "status": {
+        "success": "#9bbc0f",
+        "warning": "#e0f8d0",
+        "error": "#f8f8a0"
+      },
+      "border": {
+        "default": "#9bbc0f"
+      },
+      "ui": {
+        "comment": "#8bac0f"
+      }
+    },
+    {
+      "name": "game-mode-amber",
+      "type": "custom",
+      "background": {
+        "primary": "#2a1700"
+      },
+      "text": {
+        "primary": "#ffd9a0",
+        "secondary": "#c89040",
+        "link": "#ffe0a0"
+      },
+      "status": {
+        "success": "#ffb000",
+        "warning": "#ffd060",
+        "error": "#ff5a2a"
+      },
+      "border": {
+        "default": "#ffb000"
+      },
+      "ui": {
+        "comment": "#c89040"
+      }
+    }
+  ]
+}

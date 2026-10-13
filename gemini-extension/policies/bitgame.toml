@@ -1,0 +1,29 @@
+# GAME MODE Tier-2 Policy Engine Rules for Gemini CLI
+# Static zero-latency guards complementing the dynamic BeforeTool hook engine.
+
+[[rule]]
+toolName = "grep_search"
+argsPattern = "(\\.env|id_rsa|id_ed25519|\\.pem|\\.aws/credentials|\\.netrc)"
+decision = "deny"
+priority = 200
+denyMessage = "game-trap-guard blocked this call: searching secret files (.env, SSH keys, credentials) is restricted."
+
+[[rule]]
+toolName = "read_file"
+argsPattern = "(\\.env(\\.local|\\.production|\\.development)?\"|id_rsa|id_ed25519|\\.pem|\\.aws/credentials)"
+decision = "deny"
+priority = 200
+denyMessage = "game-trap-guard blocked this call: reading secret files (.env, SSH keys, credentials) into the conversation is restricted."
+
+[[rule]]
+toolName = "run_shell_command"
+commandPrefix = "git reset --hard"
+decision = "ask_user"
+priority = 150
+
+[[rule]]
+toolName = "run_shell_command"
+commandPrefix = "rm -rf /"
+decision = "deny"
+priority = 300
+denyMessage = "game-barrier blocked this call: deleting root filesystem is forbidden."
