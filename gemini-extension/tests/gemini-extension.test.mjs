@@ -327,3 +327,35 @@ test('Dual-Screen board combines HUD, Quest Log, and Minimap for the tmux side p
   }
 })
 
+// ---------------------------------------------------------------------------
+// 9. Antigravity (agy) Hook Contract tests (PreToolUse, PostToolUse, Stop)
+// ---------------------------------------------------------------------------
+
+test('Hook Runner supports Antigravity (agy) PreToolUse, PostToolUse, and Stop contracts', () => {
+  const allowRes = runHook('PreToolUse', {
+    conversationId: 'test-conv',
+    toolCall: { name: 'run_command', args: { CommandLine: 'git status' } },
+  })
+  assert.equal(allowRes.decision, 'ask')
+
+  const denyRes = runHook('PreToolUse', {
+    conversationId: 'test-conv',
+    toolCall: { name: 'run_command', args: { CommandLine: 'git reset --hard HEAD~1' } },
+  })
+  assert.equal(denyRes.decision, 'deny')
+  assert.match(denyRes.reason, /BARRIER!/)
+
+  const postRes = runHook('PostToolUse', {
+    conversationId: 'test-conv',
+    toolCall: { name: 'view_file', args: { AbsolutePath: path.resolve(__dirname, '../../README.md') } },
+  })
+  assert.deepEqual(postRes, {})
+
+  const stopRes = runHook('Stop', {
+    conversationId: 'test-conv',
+    terminationReason: 'NO_TOOL_CALL',
+  })
+  assert.deepEqual(stopRes, { decision: '' })
+})
+
+
