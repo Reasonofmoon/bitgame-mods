@@ -6,11 +6,18 @@ import os from 'node:os'
 import { execFileSync } from 'node:child_process'
 import {
   CHOICE_FILE,
+  DUAL_SCREEN_FILE,
   SAVES_FILE,
+  formatDualScreenBoard,
   formatHudBox,
+  formatMinimapBox,
+  formatQuestBox,
+  isTmuxPaneAlive,
   loadState,
+  mutateQuests,
   playSound,
   saveState,
+  syncTmuxSidePane,
 } from './core.mjs'
 
 const [sub, ...rest] = process.argv.slice(2)
@@ -202,4 +209,88 @@ if (sub === 'pick') {
   process.exit(0)
 }
 
-console.log('Usage: cli.mjs [hud|pass|earcons|save|load|pick] [args]')
+if (sub === 'quest') {
+  const [firstWord, ...tailWords] = rest
+  const act = (firstWord || '').toLowerCase()
+  if (act === 'clear' || act === 'add' || act === 'done') {
+    const res = mutateQuests(state, act, tailWords.join(' '))
+    saveState(state)
+    syncTmuxSidePane(state, { cwd: process.cwd() })
+    if (act === 'clear') {
+      console.log(res.message)
+      process.exit(0)
+    }
+  } else {
+    syncTmuxSidePane(state, { cwd: process.cwd() })
+  }
+  console.log(formatQuestBox(state))
+  process.exit(0)
+}
+
+if (sub === 'minimap') {
+  const mode = arg.toLowerCase()
+  if (mode === 'reset' || mode === 'clear') {
+    state.minimapVisits = {}
+    saveState(state)
+  }
+  syncTmuxSidePane(state, { cwd: process.cwd() })
+  console.log(formatMinimapBox(state, { cwd: process.cwd() }))
+  process.exit(0)
+}
+
+if (sub === 'dual') {
+  const mode = arg.toLowerCase()
+  if (mode === 'off' || mode === 'close') {
+    state.dualScreen = false
+    if (state.tmuxPaneId && isTmuxPaneAlive(state.tmuxPaneId)) {
+      try {
+        execFileSync('tmux', ['kill-pane', '-t', state.tmuxPaneId], { stdio: 'ignore' })
+      } catch {
+        // ignore
+      }
+    }
+    state.tmuxPaneId = null
+    saveState(state)
+    console.log('🖥️ GAME MODE Dual-Screen (tmux side-pane): OFF')
+    process.exit(0)
+  }
+
+  state.dualScreen = true
+  saveState(state)
+  const forceOpen = mode === 'open' || mode === 'on' || Boolean(process.env.TMUX)
+  const res = syncTmuxSidePane(state, { cwd: process.cwd(), forceOpen })
+  const statusLine = res.paneId
+    ? `🖥️ GAME MODE Dual-Screen: ON (tmux pane ${res.paneId})`
+    : `🖥️ GAME MODE Dual-Screen: ON (buffer: ${DUAL_SCREEN_FILE})`
+  console.log(statusLine + '\n' + res.board)
+  process.exit(0)
+}
+
+if (sub === 'pane-watch') {
+  let lastContent = ''
+  const render = () => {
+    try {
+      const content = fs.existsSync(DUAL_SCREEN_FILE)
+        ? fs.readFileSync(DUAL_SCREEN_FILE, 'utf8')
+        : formatDualScreenBoard(loadState(), { cwd: process.cwd() })
+      if (content !== lastContent) {
+        lastContent = content
+        process.stdout.write('\x1b[2J\x1b[H' + content)
+      }
+    } catch {
+      // ignore transient read errors
+    }
+  }
+  process.stdout.write('\x1b[?25l')
+  const cleanup = () => {
+    process.stdout.write('\x1b[?25h\n')
+    process.exit(0)
+  }
+  process.on('SIGINT', cleanup)
+  process.on('SIGTERM', cleanup)
+  render()
+  setInterval(render, 300)
+} else {
+  console.log('Usage: cli.mjs [hud|quest|minimap|dual|pass|earcons|save|load|pick] [args]')
+}
+

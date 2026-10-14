@@ -124,7 +124,7 @@ Requires **Claude Code 2.1.287 or later** (mods). Built and tested on 2.1.291. C
 
 ### Gemini CLI (0.40+)
 
-Clone and link the bundled [`gemini-extension/`](gemini-extension/README.md) (includes the 3 retro themes, Trap Guard, Barrier, Loop Breaker, Spell Check, Hedge Mark, 8-Bit HUD, Earcons, Save Point, and Jev Choice `/game:*` commands):
+Clone and link the bundled [`gemini-extension/`](gemini-extension/README.md) (includes the 3 retro themes, Trap Guard, Barrier, Loop Breaker, Spell Check, Hedge Mark, 8-Bit HUD, Quest Log, Minimap, `tmux` Dual-Screen side pane, Earcons, Save Point, and Jev Choice `/game:*` commands):
 
 ```bash
 git clone https://github.com/Reasonofmoon/bitgame-mods.git
@@ -133,7 +133,7 @@ bash scripts/check-gemini.sh
 gemini extensions link ./gemini-extension
 ```
 
-Switch themes inside Gemini CLI with `/theme` (`game-mode-nes`, `game-mode-gameboy`, `game-mode-amber`) and use `/game:hud`, `/game:pick`, `/game:save`, `/game:load`, `/game:pass`, `/game:earcons`.
+Switch themes inside Gemini CLI with `/theme` (`game-mode-nes`, `game-mode-gameboy`, `game-mode-amber`) and use `/quest`, `/minimap`, `/game:dual` (auto-renders `/quest` + `/minimap` in a right-hand `tmux` pane when running in `tmux`), `/game:hud`, `/game:pick`, `/game:save`, `/game:load`, `/game:pass`, `/game:earcons`.
 
 ---
 

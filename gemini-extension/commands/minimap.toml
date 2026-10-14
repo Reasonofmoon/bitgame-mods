@@ -1,0 +1,6 @@
+description = "GAME MODE minimap: display the project's files (edited, read, unexplored, and re-read hotspots)"
+prompt = """
+Display the following GAME MODE Minimap board verbatim in a code block without running any extra tools:
+
+!{node "${extensionPath}/runtime/cli.mjs" minimap {{args}}}
+"""

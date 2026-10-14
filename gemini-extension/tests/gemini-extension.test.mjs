@@ -8,15 +8,27 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import {
+  DUAL_SCREEN_FILE,
+  cellOfMinimap,
   countHedges,
+  formatDualScreenBoard,
   formatHudBox,
+  formatMinimapLines,
+  formatQuestLines,
   inspectBarrier,
   inspectPromptSpellCheck,
   inspectTrapGuard,
   loopKeyOf,
+  mutateQuests,
   parseStatusSummary,
+  recordMinimapVisit,
+  relativeMinimapPath,
   secretFile,
   signatureOf,
+  summaryOfMinimap,
+  syncQuestsFromSummary,
+  syncQuestsFromTool,
+  syncTmuxSidePane,
 } from '../runtime/core.mjs'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
@@ -26,6 +38,7 @@ function runHook(event, payload) {
   const stdout = execFileSync('node', [RUNNER, event], {
     input: JSON.stringify(payload),
     encoding: 'utf8',
+    env: { ...process.env, BITGAME_NO_TMUX: '1' },
   })
   return JSON.parse(stdout.trim())
 }
@@ -198,3 +211,119 @@ test('Hook Runner returns valid JSON for BeforeAgent and BeforeTool', () => {
   assert.match(hud, /LV 02/)
   assert.match(hud, /COMBO ×4/)
 })
+
+// ---------------------------------------------------------------------------
+// 7. Quest Log (/quest) unit tests
+// ---------------------------------------------------------------------------
+
+test('Quest Log tracks tasks from status summary, tools, and CLI mutations with BOSS and ALL CLEAR', () => {
+  const state = { quests: [], questsCarried: false }
+
+  syncQuestsFromSummary(state, {
+    done: ['저장소 구조 파악'],
+    todo: ['토큰 만료 단위 수정', 'README 갱신', '전체 테스트 통과'],
+  })
+
+  assert.equal(state.quests.length, 4)
+  assert.equal(state.quests[0].status, 'completed')
+  assert.equal(state.quests[1].status, 'in_progress')
+  assert.equal(state.quests[3].status, 'pending')
+
+  const lines = formatQuestLines(state)
+  assert.match(lines[0], /QUEST LOG · 1\/4 클리어/)
+  assert.equal(lines[1], '✓ 저장소 구조 파악')
+  assert.equal(lines[2], '▶ 토큰 만료 단위 수정')
+  assert.equal(lines[4], '· 전체 테스트 통과  BOSS')
+
+  // Complete remaining quests via mutateQuests
+  mutateQuests(state, 'done', '')
+  mutateQuests(state, 'done', '')
+  mutateQuests(state, 'done', '')
+  const clearLines = formatQuestLines(state)
+  assert.match(clearLines[0], /4\/4 클리어/)
+  assert.equal(clearLines.at(-1), '★ ALL CLEAR! ★')
+
+  // Tool-based TodoWrite sync
+  syncQuestsFromTool(state, 'TodoWrite', {
+    todos: [
+      { content: '첫 번째 할 일', status: 'completed' },
+      { content: '보스 스테이지', status: 'in_progress' },
+    ],
+  })
+  assert.equal(state.quests.length, 2)
+  assert.match(formatQuestLines(state).join('\n'), /▶ 보스 스테이지  BOSS/)
+})
+
+// ---------------------------------------------------------------------------
+// 8. Minimap (/minimap) & Dual-Screen (tmux side-pane) tests
+// ---------------------------------------------------------------------------
+
+test('Minimap records file reads/edits, computes cells (█ ▓ ░ 3+), and identifies re-read hotspots', () => {
+  const root = '/workspace/project'
+  assert.equal(relativeMinimapPath('/workspace/project/src/auth.ts', root), 'src/auth.ts')
+  assert.equal(relativeMinimapPath('./test/auth.test.ts', root), 'test/auth.test.ts')
+  assert.equal(relativeMinimapPath('/other/repo/file.ts', root), undefined)
+
+  const state = { minimapVisits: {} }
+  recordMinimapVisit(state, 'read_file', { file_path: '/workspace/project/src/auth.ts' }, root)
+  recordMinimapVisit(state, 'read_file', { file_path: '/workspace/project/src/auth.ts' }, root)
+  recordMinimapVisit(state, 'read_file', { file_path: '/workspace/project/src/auth.ts' }, root)
+  recordMinimapVisit(state, 'read_file', { file_path: '/workspace/project/src/auth.ts' }, root)
+  recordMinimapVisit(state, 'write_file', { file_path: '/workspace/project/src/index.ts', content: 'x' }, root)
+  recordMinimapVisit(state, 'view_file', { AbsolutePath: '/workspace/project/README.md' }, root)
+
+  assert.equal(cellOfMinimap(state.minimapVisits['src/auth.ts']).glyph, '4')
+  assert.equal(cellOfMinimap(state.minimapVisits['src/index.ts']).glyph, '█')
+  assert.equal(cellOfMinimap(state.minimapVisits['README.md']).glyph, '▓')
+  assert.equal(cellOfMinimap(undefined).glyph, '░')
+
+  const fileList = ['src/auth.ts', 'src/index.ts', 'src/utils.ts', 'README.md', 'package.json']
+  const summary = summaryOfMinimap(fileList, state.minimapVisits)
+  assert.equal(summary.total, 5)
+  assert.equal(summary.edited, 1)
+  assert.equal(summary.read, 2)
+  assert.equal(summary.unexplored, 2)
+  assert.equal(summary.top[0].path, 'src/auth.ts')
+  assert.equal(summary.top[0].reads, 4)
+
+  const mapLines = formatMinimapLines(state, { cwd: root, fileList })
+  assert.match(mapLines[0], /MINIMAP · 파일 5 · 편집 1 · 읽음 2 · 미탐색 2/)
+  assert.match(mapLines.join('\n'), /가장 많이 다시 읽은 파일: src\/auth\.ts \(4회\)/)
+})
+
+test('Dual-Screen board combines HUD, Quest Log, and Minimap for the tmux side pane', () => {
+  const state = {
+    level: 3,
+    exp: 24,
+    combo: 6,
+    maxCombo: 11,
+    guardMode: 'block',
+    earcons: true,
+    passUntil: 0,
+    dualScreen: true,
+    quests: [
+      { id: '1', text: '듀얼 스크린 설계', doing: '', status: 'completed' },
+      { id: '2', text: 'tmux 패인 연동', doing: '', status: 'in_progress' },
+    ],
+    minimapVisits: {
+      'gemini-extension/runtime/core.mjs': { reads: 3, isEdited: true },
+    },
+  }
+  const fileList = ['gemini-extension/runtime/core.mjs', 'README.md']
+  const prevNoTmux = process.env.BITGAME_NO_TMUX
+  process.env.BITGAME_NO_TMUX = '1'
+  try {
+    const res = syncTmuxSidePane(state, { fileList })
+    assert.equal(res.written, true)
+    assert.match(res.board, /DUAL SCREEN \(TMUX SIDE PANE\)/)
+    assert.match(res.board, /QUEST LOG · 1\/2 클리어/)
+    assert.match(res.board, /▶ tmux 패인 연동  BOSS/)
+    assert.match(res.board, /MINIMAP · 파일 2 · 편집 1 · 읽음 0 · 미탐색 1/)
+    assert.match(res.board, /가장 많이 다시 읽은 파일: gemini-extension\/runtime\/core\.mjs \(3회\)/)
+    assert.ok(DUAL_SCREEN_FILE.endsWith('dual-screen.txt'))
+  } finally {
+    if (prevNoTmux === undefined) delete process.env.BITGAME_NO_TMUX
+    else process.env.BITGAME_NO_TMUX = prevNoTmux
+  }
+})
+

@@ -16,8 +16,12 @@ import {
   parseStatusSummary,
   playSound,
   rankWithJev,
+  recordMinimapVisit,
   saveState,
   signatureOf,
+  syncQuestsFromSummary,
+  syncQuestsFromTool,
+  syncTmuxSidePane,
 } from './core.mjs'
 
 function readStdinJson() {
@@ -44,11 +48,16 @@ async function main() {
   if (event === 'SessionStart') {
     state.streaks = {}
     state.lastTurnStartMs = Date.now()
+    if (Array.isArray(state.quests) && state.quests.length > 0) {
+      state.questsCarried = true
+    }
     saveState(state)
+    const dual = syncTmuxSidePane(state, { cwd, transcriptPath })
 
+    const dualBadge = dual.paneId ? `  ·  🖥️ DUAL(${dual.paneId})` : ''
     const saveHint = state.lastSavedPassword
-      ? `💾 SAVE POINT: /game:load ${state.lastSavedPassword}  ·  /game:hud  ·  /game:pick`
-      : `▸ Commands: /game:hud · /game:save · /game:pick · /game:pass · /game:earcons`
+      ? `💾 SAVE POINT: /game:load ${state.lastSavedPassword}  ·  /quest  ·  /minimap${dualBadge}`
+      : `▸ Commands: /quest · /minimap · /game:dual · /game:hud · /game:save · /game:pick${dualBadge}`
 
     const banner = formatHudBox(state, {
       cwd,
@@ -204,6 +213,10 @@ async function main() {
         delete state.streaks[key.id]
       }
 
+      // Track file visits for Minimap & tasks for Quest Log
+      recordMinimapVisit(state, toolName, toolInput, cwd)
+      syncQuestsFromTool(state, toolName, toolInput)
+
       // Achievements check
       const unlocked = []
       if (state.combo === 10 && !state.achievements.includes('10-Combo Master')) {
@@ -211,6 +224,7 @@ async function main() {
         unlocked.push('★ ACHIEVEMENT UNLOCKED: 10-Combo Master!')
       }
       saveState(state)
+      syncTmuxSidePane(state, { cwd, transcriptPath })
 
       if (leveledUp) {
         playSound('done', state.earcons)
@@ -245,6 +259,7 @@ async function main() {
       state.streaks = state.streaks || {}
       state.streaks[key.id] = { signature: sig, count, label: key.label }
       saveState(state)
+      syncTmuxSidePane(state, { cwd, transcriptPath })
 
       if (count >= 2) {
         const warnMsg =
@@ -262,11 +277,12 @@ async function main() {
     }
 
     saveState(state)
+    syncTmuxSidePane(state, { cwd, transcriptPath })
     sendJson({})
     return
   }
 
-  // 5. AfterAgent (HUD + Clear Time + Hedge Mark + Jev Choice Card)
+  // 5. AfterAgent (HUD + Clear Time + Hedge Mark + Jev Choice Card + Dual Screen)
   if (event === 'AfterAgent') {
     state.turns = (state.turns || 0) + 1
     const elapsedSec = Math.max(1, Math.round((Date.now() - (state.lastTurnStartMs || Date.now())) / 1000))
@@ -278,7 +294,6 @@ async function main() {
     const diffSec = elapsedSec - medianSec
     const diffLabel = diffSec <= 0 ? `${diffSec}s` : `+${diffSec}s`
     state.turnDurationsMs = [...history.slice(-19), elapsedSec * 1000]
-    saveState(state)
 
     const responseText = input.prompt_response || ''
     const hedges = countHedges(responseText)
@@ -288,6 +303,7 @@ async function main() {
 
     const parsed = parseStatusSummary(responseText)
     if (parsed) {
+      syncQuestsFromSummary(state, parsed)
       const { summary, ranked, note } = await rankWithJev(parsed)
       try {
         fs.writeFileSync(
@@ -316,6 +332,8 @@ async function main() {
       }
     }
 
+    saveState(state)
+    syncTmuxSidePane(state, { cwd, transcriptPath })
     playSound('done', state.earcons)
     const hud = formatHudBox(state, { cwd, transcriptPath, extraLines })
     sendJson({ systemMessage: hud })
