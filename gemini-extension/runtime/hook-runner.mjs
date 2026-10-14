@@ -4,12 +4,15 @@
 
 import fs from 'node:fs'
 import {
-  CHOICE_FILE,
+  bestOptionIndex,
+  composeChoicePrompt,
   countHedges,
+  fillTmuxMainPrompt,
   formatHudBox,
   inspectBarrier,
   inspectPromptSpellCheck,
   inspectTrapGuard,
+  loadChoice,
   loadState,
   loopKeyOf,
   normalizeTool,
@@ -17,6 +20,7 @@ import {
   playSound,
   rankWithJev,
   recordMinimapVisit,
+  saveChoice,
   saveState,
   signatureOf,
   syncQuestsFromSummary,
@@ -369,32 +373,40 @@ async function main() {
 
     const parsed = parseStatusSummary(responseText)
     if (parsed) {
+      const prevChoice = loadChoice()
+      const isNewSummary = prevChoice?.summary?.resume !== parsed.resume
       syncQuestsFromSummary(state, parsed)
       const { summary, ranked, note } = await rankWithJev(parsed)
-      try {
-        fs.writeFileSync(
-          CHOICE_FILE,
-          JSON.stringify({ updatedAt: Date.now(), ranked, note, summary }, null, 2) + '\n',
-          'utf8',
-        )
-      } catch {
-        // ignore
+      const { text: composedPrompt, selected } = composeChoicePrompt(summary)
+      saveChoice({
+        updatedAt: Date.now(),
+        ranked,
+        note,
+        summary,
+        selected,
+        composedPrompt,
+      })
+
+      if (state.autoFill !== false && isNewSummary && composedPrompt) {
+        fillTmuxMainPrompt(composedPrompt, state, { delayMs: 450 })
       }
 
       if (summary.decisions.length > 0) {
-        extraLines.push(`◆ CHOICE CARD (${ranked ? 'Jev AI 랭킹 적용' : '기본 순서'}) — /game:pick <코드> 로 즉시 실행`)
+        extraLines.push(`◆ CHOICE CARD (${ranked ? 'Jev AI 랭킹 적용' : '기본 순서'}) — F1(1a)/F2(1b) 또는 /game:pick <코드>`)
         summary.decisions.forEach((d, idx) => {
+          const bestIdx = bestOptionIndex(d)
           const opts = d.options
             .map((o, j) => {
               const code = `${idx + 1}${String.fromCharCode(97 + j)}`
-              const star = j === 0 ? '★' : ''
-              return `[${code}] ${star}${o.label}`
+              const star = j === bestIdx ? '★' : ''
+              const pct = typeof o.p === 'number' ? `(${Math.round(o.p * 100)}%)` : ''
+              return `[${code}] ${star}${o.label}${pct}`
             })
             .join('   ')
           extraLines.push(`  Q${idx + 1}. ${d.question}  →  ${opts}`)
         })
       } else {
-        extraLines.push(`◆ NEXT PROMPT READY — /game:pick 입력 시 4번 재개 프롬프트로 바로 진행합니다.`)
+        extraLines.push(`◆ NEXT PROMPT READY — 입력창에 자동완성됨 (또는 /game:pick)`)
       }
     }
 

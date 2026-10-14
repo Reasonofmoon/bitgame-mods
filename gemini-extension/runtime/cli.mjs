@@ -5,17 +5,24 @@ import fs from 'node:fs'
 import os from 'node:os'
 import { execFileSync } from 'node:child_process'
 import {
-  CHOICE_FILE,
   DUAL_SCREEN_FILE,
   SAVES_FILE,
+  TMUX_BIN,
+  bestOptionIndex,
+  composeChoicePrompt,
+  copyToClipboard,
+  fillTmuxMainPrompt,
+  formatChoiceLines,
   formatDualScreenBoard,
   formatHudBox,
   formatMinimapBox,
   formatQuestBox,
   isTmuxPaneAlive,
+  loadChoice,
   loadState,
   mutateQuests,
   playSound,
+  saveChoice,
   saveState,
   syncTmuxSidePane,
 } from './core.mjs'
@@ -37,25 +44,40 @@ function writeSaves(list) {
   fs.writeFileSync(SAVES_FILE, JSON.stringify(list, null, 2) + '\n', 'utf8')
 }
 
-function loadChoice() {
-  try {
-    if (fs.existsSync(CHOICE_FILE)) return JSON.parse(fs.readFileSync(CHOICE_FILE, 'utf8'))
-  } catch {
-    // ignore
-  }
-  return null
-}
+function applyPickTokens(tokens = [], { focusMain = false } = {}) {
+  const data = loadChoice()
+  if (!data?.summary) return null
+  const summary = data.summary
+  const nextSelected = { ...(data.selected || {}) }
+  const cleanTokens = tokens.filter(t => t && !t.startsWith('--'))
 
-function copyClipboard(text) {
-  try {
-    if (process.platform === 'darwin') {
-      execFileSync('pbcopy', [], { input: text, stdio: ['pipe', 'ignore', 'ignore'] })
-      return true
+  summary.decisions.forEach((d, i) => {
+    const qPrefix = String(i + 1)
+    const token = cleanTokens.find(t => t.startsWith(qPrefix))
+    let optIdx = nextSelected[i] ?? bestOptionIndex(d)
+    if (token && token.length >= 2) {
+      const letterIdx = token.charCodeAt(1) - 97
+      if (letterIdx >= 0 && letterIdx < d.options.length) {
+        optIdx = letterIdx
+      } else if (i === 0 && d.options.length < 3 && summary.decisions[1]) {
+        // Fallback when 1c is pressed on a 2-option Q1 -> map to 2a
+        nextSelected[1] = 0
+      }
     }
-  } catch {
-    // ignore
+    nextSelected[i] = optIdx
+  })
+
+  const { text: composed, selected } = composeChoicePrompt(summary, nextSelected)
+  const updated = {
+    ...data,
+    selected,
+    composedPrompt: composed,
+    updatedAt: Date.now(),
   }
-  return false
+  saveChoice(updated)
+  syncTmuxSidePane(state, { cwd: process.cwd() })
+  const fillRes = fillTmuxMainPrompt(composed, state, { delayMs: 0, focusMain })
+  return { composed, selected, fillRes }
 }
 
 if (sub === 'hud') {
@@ -66,7 +88,8 @@ if (sub === 'hud') {
     ? `🏆 ACHIEVEMENTS: ${state.achievements.join(' · ')}`
     : '🏆 ACHIEVEMENTS: 첫 세이브(/game:save) 또는 10콤보 달성 시 해금'
   const stats = `📊 STATS: 총 ${state.turns}턴 · 도구 호출 ${state.toolCalls}회 · 가드 차단 ${state.trapsBlocked}회`
-  console.log(formatHudBox(state, { extraLines: [stats, inv, ach] }))
+  const choiceLines = formatChoiceLines(loadChoice(), { autoFill: state.autoFill !== false })
+  console.log(formatHudBox(state, { extraLines: [stats, inv, ach, '─'.repeat(68), ...choiceLines] }))
   process.exit(0)
 }
 
@@ -95,6 +118,7 @@ if (sub === 'earcons') {
   if (mode === 'on' || mode === 'off') {
     state.earcons = mode === 'on'
     saveState(state)
+    syncTmuxSidePane(state, { cwd: process.cwd() })
     if (state.earcons) playSound('done', true)
     console.log(`🔊 GAME MODE Earcons (효과음): ${state.earcons ? 'ON' : 'OFF'}`)
     process.exit(0)
@@ -106,8 +130,32 @@ if (sub === 'earcons') {
   }
   state.earcons = !state.earcons
   saveState(state)
+  syncTmuxSidePane(state, { cwd: process.cwd() })
   if (state.earcons) playSound('hit', true)
   console.log(`🔊 GAME MODE Earcons toggled: ${state.earcons ? 'ON' : 'OFF'}`)
+  process.exit(0)
+}
+
+if (sub === 'autofill') {
+  const mode = arg.toLowerCase()
+  if (mode === 'on' || mode === 'off') {
+    state.autoFill = mode === 'on'
+  } else {
+    state.autoFill = state.autoFill === false
+  }
+  saveState(state)
+  syncTmuxSidePane(state, { cwd: process.cwd() })
+  console.log(`⌨️ GAME MODE 프롬프트 자동완성(Auto-Fill): ${state.autoFill ? 'ON' : 'OFF'}`)
+  process.exit(0)
+}
+
+if (sub === 'fill-now') {
+  const data = loadChoice()
+  if (!data?.summary) process.exit(0)
+  const { text: composed } = composeChoicePrompt(data.summary, data.selected || {})
+  if (composed) {
+    fillTmuxMainPrompt(composed, state, { delayMs: 0 })
+  }
   process.exit(0)
 }
 
@@ -143,7 +191,7 @@ if (sub === 'save') {
     state.achievements.push('First Save Point')
   }
   saveState(state)
-  const copied = copyClipboard(summary.resume)
+  const copied = copyToClipboard(summary.resume)
   playSound('save', state.earcons)
 
   console.log([
@@ -182,30 +230,14 @@ if (sub === 'load') {
 }
 
 if (sub === 'pick') {
-  const data = loadChoice()
-  if (!data?.summary) {
+  const tokens = arg ? arg.toLowerCase().split(/[\s,]+/).filter(Boolean) : []
+  const res = applyPickTokens(tokens)
+  if (!res) {
     console.log('아직 저장된 `[상태 요약]` 선택 카드가 없습니다. 먼저 작업 턴을 1회 진행해 주세요.')
     process.exit(0)
   }
-  const summary = data.summary
-  const tokens = arg ? arg.toLowerCase().split(/[\s,]+/).filter(Boolean) : []
-  const pickedSentences = []
-
-  summary.decisions.forEach((d, i) => {
-    const qPrefix = String(i + 1)
-    const token = tokens.find(t => t.startsWith(qPrefix))
-    let optIdx = 0 // default to recommended (first/top) option
-    if (token && token.length >= 2) {
-      const letterIdx = token.charCodeAt(1) - 97
-      if (letterIdx >= 0 && letterIdx < d.options.length) optIdx = letterIdx
-    }
-    const chosen = d.options[optIdx]
-    if (chosen?.append) pickedSentences.push(chosen.append)
-  })
-
-  const composed = [summary.resume, ...pickedSentences].join(' ').trim()
   playSound('hit', state.earcons)
-  console.log(composed)
+  console.log(res.composed)
   process.exit(0)
 }
 
@@ -244,7 +276,7 @@ if (sub === 'dual') {
     state.dualScreen = false
     if (state.tmuxPaneId && isTmuxPaneAlive(state.tmuxPaneId)) {
       try {
-        execFileSync('tmux', ['kill-pane', '-t', state.tmuxPaneId], { stdio: 'ignore' })
+        execFileSync(TMUX_BIN, ['kill-pane', '-t', state.tmuxPaneId], { stdio: 'ignore' })
       } catch {
         // ignore
       }
@@ -268,12 +300,12 @@ if (sub === 'dual') {
 
 if (sub === 'pane-watch') {
   let lastContent = ''
-  const render = () => {
+  const render = (force = false) => {
     try {
       const content = fs.existsSync(DUAL_SCREEN_FILE)
         ? fs.readFileSync(DUAL_SCREEN_FILE, 'utf8')
         : formatDualScreenBoard(loadState(), { cwd: process.cwd() })
-      if (content !== lastContent) {
+      if (force || content !== lastContent) {
         lastContent = content
         process.stdout.write('\x1b[2J\x1b[H' + content)
       }
@@ -288,9 +320,36 @@ if (sub === 'pane-watch') {
   }
   process.on('SIGINT', cleanup)
   process.on('SIGTERM', cleanup)
-  render()
-  setInterval(render, 300)
+
+  if (process.stdin.isTTY && typeof process.stdin.setRawMode === 'function') {
+    process.stdin.setRawMode(true)
+    process.stdin.resume()
+    process.stdin.on('data', buf => {
+      const key = buf.toString('utf8')
+      if (key === '\u0003' || key === 'q') cleanup()
+      const keyMap = {
+        '1': '1a',
+        a: '1a',
+        '2': '1b',
+        b: '1b',
+        '3': '1c',
+        c: '1c',
+        '4': '2b',
+      }
+      if (keyMap[key]) {
+        applyPickTokens([keyMap[key]], { focusMain: true })
+        render(true)
+      } else if (key === '\t' || key === '\r' || key === '\n') {
+        applyPickTokens([], { focusMain: true })
+        render(true)
+      }
+    })
+  }
+
+  render(true)
+  setInterval(() => render(false), 300)
 } else {
-  console.log('Usage: cli.mjs [hud|quest|minimap|dual|pass|earcons|save|load|pick] [args]')
+  console.log('Usage: cli.mjs [hud|quest|minimap|dual|pass|earcons|autofill|save|load|pick] [args]')
 }
+
 
