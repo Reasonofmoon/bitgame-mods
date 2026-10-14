@@ -18,6 +18,7 @@
 
 <p align="center">
   <img alt="Claude Code" src="https://img.shields.io/badge/claude%20code-2.1.287%2B-3cbcfc?style=for-the-badge&labelColor=000000" />
+  <img alt="Gemini CLI" src="https://img.shields.io/badge/gemini%20cli-0.40%2B-4285f4?style=for-the-badge&labelColor=000000" />
   <img alt="License" src="https://img.shields.io/badge/license-MIT-58d854?style=for-the-badge&labelColor=000000" />
   <img alt="Rule" src="https://img.shields.io/badge/rule-every%20pixel%20does%20a%20job-f8d830?style=for-the-badge&labelColor=000000" />
   <a href="https://github.com/Reasonofmoon/bitgame-mods/actions/workflows/check.yml"><img alt="check" src="https://img.shields.io/github/actions/workflow/status/Reasonofmoon/bitgame-mods/check.yml?branch=main&label=check&style=for-the-badge&labelColor=000000&color=fca044" /></a>
@@ -120,6 +121,19 @@ Each mod works alone; install only the ones you want. Already on 0.1.x: `claude 
 Try one without installing: `claude --plugin-dir ./plugins/game-trap-guard`.
 
 Requires **Claude Code 2.1.287 or later** (mods). Built and tested on 2.1.291. Coding agents: read [AGENTS.md](AGENTS.md) first.
+
+### Gemini CLI (0.40+)
+
+Clone and link the bundled [`gemini-extension/`](gemini-extension/README.md) (includes the 3 retro themes, Trap Guard, Barrier, Loop Breaker, Spell Check, Hedge Mark, 8-Bit HUD, Earcons, Save Point, and Jev Choice `/game:*` commands):
+
+```bash
+git clone https://github.com/Reasonofmoon/bitgame-mods.git
+cd bitgame-mods
+bash scripts/check-gemini.sh
+gemini extensions link ./gemini-extension
+```
+
+Switch themes inside Gemini CLI with `/theme` (`game-mode-nes`, `game-mode-gameboy`, `game-mode-amber`) and use `/game:hud`, `/game:pick`, `/game:save`, `/game:load`, `/game:pass`, `/game:earcons`.
 
 ---
 
@@ -229,22 +243,25 @@ If a guard refuses an ordinary command, or misses a case its README lists, it is
 plugins/game-*/                   one plugin each: plugin.json · hooks/ · types/ · tests/ · README
 plugins/game-*/hooks/palette.ts   the shared look, one copy per plugin (scripts/check.sh keeps them equal)
 plugins/game-earcons/sounds/      the 8-bit WAV cues (scripts/make-earcons.py writes them)
+gemini-extension/                 Gemini CLI 0.40+ extension (themes · policies · hooks · /game:* commands · tests)
 examples/RUN-2026-10-06.md        real-run log of the guards and /save
 docs/                             GOALS (0.2.0 acceptance) · ROADMAP · screenshots · hero image
-scripts/check.sh                  strict validate + tests for every plugin (CI runs this)
+scripts/check.sh                  strict validate + tests for every Claude Code plugin (CI runs this)
+scripts/check-gemini.sh           validate + unit/contract tests for the Gemini CLI extension
 ```
 
-Zero runtime dependencies. The hooks modules run inside Claude Code's own mod environment: no Node, no build step.
+Zero runtime dependencies. The hooks modules run inside Claude Code's own mod environment (or Node.js for the Gemini CLI extension): no external npm packages, no build step.
 
 ---
 
 ## 한국어 요약
 
-**GAME MODE**는 Claude Code를 8비트 게임 화면처럼 꾸미되, **모든 요소가 실제 일을 하도록** 만든 Mod 22종입니다. 원하는 것만 골라 설치해도 됩니다.
+**GAME MODE**는 Claude Code와 Gemini CLI를 8비트 게임 화면처럼 꾸미되, **모든 요소가 실제 일을 하도록** 만든 Mod 22종(및 Gemini CLI 통합 익스텐션)입니다. 원하는 것만 골라 설치해도 됩니다.
 
 - **안전과 비용 (P1)**: HUD(HP=남은 컨텍스트, MP=요금제 한도, G=비용 ₩), 전투 로그(TURN·COMBO·BREAK·+/− 줄 수·가드별 판정), 트랩 가드(비밀키 노출 차단), 결계(되돌릴 수 없는 명령 차단), 루프 차단, 세이브 포인트(세이브 화면·PASSWORD·타이틀 화면·`/load`), 효과음(macOS·Windows·Linux)
 - **흐름 파악 (P2)**: STANCE(권한 모드 배지), CASTING(지금 하는 일과 이번 턴 비용), CLEAR(평소 대비 턴 시간), PARTY·QUEST·MINIMAP 패널, 힌트 줄, MAP(브랜치와 플레이 시간)
 - **습관 (P3)**: 스펠 체크(모호어 밑줄, 완료 조건 먼저 요청, `P1` 메시지 창), 지난번 선택 ★, 추정 문장 `[?]` 표시, ITEM GET!·`/inventory`, EQUIP(모델), 업적
 - **이어 하기 (P4)**: CHOICE — 답변 끝 `[상태 요약]`의 재개 프롬프트를 입력창 제안(Tab)으로, 결정 항목을 버튼으로 띄우고 고른 대로 프롬프트를 다듬음. Jev(typesafe.ai)가 뒤에서 순위를 매기며 섀도 모드(기본)에서는 확률을 숨기고 기록만 함. 입력 중 맞는 스킬 제안
+- **Gemini CLI (`gemini-extension/`)**: `gemini extensions link ./gemini-extension` 한 줄로 레트로 테마 3종(`NES`/`GameBoy`/`Amber`), 3대 가드(`TRAP!`/`BARRIER!`/`LOOP!`), 8-Bit HUD, 스펠 체크, 추정 표시, 세이브 포인트 및 Jev `/game:pick`을 바로 사용할 수 있습니다.
 
 설치는 위 [Start in 30 seconds](#start-in-30-seconds)의 명령 한 번이면 됩니다. Windows는 PowerShell 블록을 쓰세요.
