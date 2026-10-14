@@ -17,6 +17,7 @@ export const STATE_DIR = path.join(os.homedir(), '.gemini', 'bitgame')
 export const STATE_FILE = path.join(STATE_DIR, 'state.json')
 export const CHOICE_FILE = path.join(STATE_DIR, 'last-choice.json')
 export const SAVES_FILE = path.join(STATE_DIR, 'saves.json')
+export const DUAL_SCREEN_FILE = path.join(STATE_DIR, 'dual-screen.txt')
 
 const PASS_MS = 10 * 60 * 1000
 
@@ -63,6 +64,11 @@ function defaultState() {
     turnDurationsMs: [],
     lastTurnStartMs: Date.now(),
     lastSavedPassword: null,
+    quests: [],
+    questsCarried: false,
+    minimapVisits: {},
+    dualScreen: true,
+    tmuxPaneId: null,
   }
 }
 
@@ -597,3 +603,383 @@ export function formatHudBox(state, { cwd = process.cwd(), transcriptPath = null
     '╰──────────────────────────────────────────────────────────────────────╯',
   ].join('\n')
 }
+
+// ---------------------------------------------------------------------------
+// 8. Quest Log Engine (game-quest)
+// ---------------------------------------------------------------------------
+
+export function todosOfQuests(todos) {
+  if (!Array.isArray(todos)) return []
+  return todos.flatMap((t, i) => {
+    if (t === null || typeof t !== 'object') return []
+    const text = typeof t.content === 'string' ? t.content : typeof t.description === 'string' ? t.description : typeof t.text === 'string' ? t.text : ''
+    if (!text) return []
+    const status =
+      t.status === 'completed' || t.status === 'done'
+        ? 'completed'
+        : t.status === 'in_progress' || t.status === 'active'
+          ? 'in_progress'
+          : 'pending'
+    const doing = typeof t.activeForm === 'string' ? t.activeForm : typeof t.doing === 'string' ? t.doing : ''
+    return [{ id: t.id ? String(t.id) : `todo-${i}`, text, doing, status }]
+  })
+}
+
+export function syncQuestsFromSummary(state, summary) {
+  if (!summary) return false
+  const doneList = Array.isArray(summary.done) ? summary.done.filter(Boolean) : []
+  const todoList = Array.isArray(summary.todo) ? summary.todo.filter(Boolean) : []
+  if (doneList.length === 0 && todoList.length === 0) return false
+
+  const quests = [
+    ...doneList.map((text, i) => ({
+      id: `done-${i + 1}`,
+      text: String(text).trim(),
+      doing: '',
+      status: 'completed',
+    })),
+    ...todoList.map((text, i) => ({
+      id: `todo-${i + 1}`,
+      text: String(text).trim(),
+      doing: '',
+      status: i === 0 ? 'in_progress' : 'pending',
+    })),
+  ]
+  state.quests = quests
+  state.questsCarried = false
+  return true
+}
+
+export function syncQuestsFromTool(state, toolName, toolInput = {}) {
+  const name = String(toolName || '')
+  if (['TodoWrite', 'write_todos'].includes(name) && Array.isArray(toolInput.todos)) {
+    state.quests = todosOfQuests(toolInput.todos)
+    state.questsCarried = false
+    return true
+  }
+  if (name === 'TaskCreate' && typeof toolInput.subject === 'string') {
+    const existing = Array.isArray(state.quests) ? state.quests : []
+    const hasActive = existing.some(q => q.status === 'in_progress')
+    state.quests = [
+      ...existing,
+      {
+        id: `task-${existing.length + 1}`,
+        text: toolInput.subject,
+        doing: typeof toolInput.activeForm === 'string' ? toolInput.activeForm : '',
+        status: hasActive ? 'pending' : 'in_progress',
+      },
+    ]
+    state.questsCarried = false
+    return true
+  }
+  return false
+}
+
+export function mutateQuests(state, action = '', argText = '') {
+  const quests = Array.isArray(state.quests) ? [...state.quests] : []
+  const act = String(action || '').toLowerCase()
+
+  if (act === 'clear') {
+    state.quests = []
+    state.questsCarried = false
+    return { message: 'quest log cleared', quests: state.quests }
+  }
+
+  if (act === 'add' && argText.trim()) {
+    const hasActive = quests.some(q => q.status === 'in_progress')
+    quests.push({
+      id: `q-${Date.now()}-${quests.length + 1}`,
+      text: argText.trim(),
+      doing: '',
+      status: hasActive ? 'pending' : 'in_progress',
+    })
+    state.quests = quests
+    state.questsCarried = false
+    return { message: `quest added: ${argText.trim()}`, quests: state.quests }
+  }
+
+  if (act === 'done') {
+    const idxNum = Number.parseInt(argText.trim(), 10)
+    let targetIdx = -1
+    if (Number.isInteger(idxNum) && idxNum >= 1 && idxNum <= quests.length) {
+      targetIdx = idxNum - 1
+    } else {
+      targetIdx = quests.findIndex(q => q.status === 'in_progress')
+      if (targetIdx < 0) targetIdx = quests.findIndex(q => q.status === 'pending')
+    }
+
+    if (targetIdx >= 0) {
+      quests[targetIdx] = { ...quests[targetIdx], status: 'completed' }
+      if (!quests.some(q => q.status === 'in_progress')) {
+        const nextPending = quests.findIndex(q => q.status === 'pending')
+        if (nextPending >= 0) {
+          quests[nextPending] = { ...quests[nextPending], status: 'in_progress' }
+        }
+      }
+      state.quests = quests
+      state.questsCarried = false
+      return { message: `quest completed: ${quests[targetIdx].text}`, quests: state.quests }
+    }
+  }
+
+  return { message: null, quests }
+}
+
+export function formatQuestLines(state) {
+  const quests = Array.isArray(state?.quests) ? state.quests : []
+  const total = quests.length
+  const done = quests.filter(q => q.status === 'completed').length
+
+  if (total === 0) {
+    return [
+      'QUEST LOG · 퀘스트 없음',
+      '할 일 목록이나 [상태 요약]이 생성되면 여기 퀘스트로 나타납니다.',
+    ]
+  }
+
+  const pct = Math.round((done / total) * 100)
+  const carried = state?.questsCarried ? ' · 지난 세션에서 이어짐' : ''
+  const header = `QUEST LOG · ${done}/${total} 클리어 ${bar(pct, 8)}${carried}`
+
+  const rows = quests.map((q, i) => {
+    const isBoss = i === total - 1 && total > 1
+    const mark = q.status === 'completed' ? '✓' : q.status === 'in_progress' ? '▶' : '·'
+    const doing = q.status === 'in_progress' && q.doing ? ` · ${q.doing}` : ''
+    const bossTag = isBoss ? '  BOSS' : ''
+    return `${mark} ${q.text}${doing}${bossTag}`
+  })
+
+  if (done === total) {
+    rows.push('★ ALL CLEAR! ★')
+  }
+  return [header, ...rows]
+}
+
+export function formatQuestBox(state) {
+  const lines = formatQuestLines(state)
+  return [
+    '╭─ GAME MODE · QUEST LOG (/quest) ─────────────────────────────────────╮',
+    ...lines.map(l => `│ ${l}`),
+    '╰──────────────────────────────────────────────────────────────────────╯',
+  ].join('\n')
+}
+
+// ---------------------------------------------------------------------------
+// 9. Minimap Engine (game-minimap)
+// ---------------------------------------------------------------------------
+
+const MAX_MINIMAP_FILES = 800
+
+export function relativeMinimapPath(rawPath, root = process.cwd()) {
+  if (!rawPath || typeof rawPath !== 'string') return undefined
+  const p = rawPath.replace(/\\/g, '/').trim()
+  if (!p) return undefined
+  const r = String(root || process.cwd()).replace(/\\/g, '/').replace(/\/$/, '')
+  if (!/^(?:[A-Za-z]:)?\//.test(p)) {
+    const rel = p.replace(/^\.\//, '')
+    return rel && rel !== '.' && !rel.startsWith('..') ? rel : undefined
+  }
+  const isWin = /^[A-Za-z]:\//.test(r)
+  const inside = isWin ? p.toLowerCase().startsWith(r.toLowerCase() + '/') : p.startsWith(r + '/')
+  return inside ? p.slice(r.length + 1) : undefined
+}
+
+export function recordMinimapVisit(state, toolName, toolInput = {}, cwd = process.cwd()) {
+  const norm = normalizeTool(toolName, toolInput)
+  if (norm.kind !== 'Read' && norm.kind !== 'Grep' && norm.kind !== 'Write') return false
+  const rel = relativeMinimapPath(norm.path, cwd)
+  if (!rel) return false
+
+  state.minimapVisits = state.minimapVisits || {}
+  const was = state.minimapVisits[rel] || { reads: 0, isEdited: false }
+  state.minimapVisits[rel] =
+    norm.kind === 'Write'
+      ? { ...was, isEdited: true }
+      : { ...was, reads: (was.reads || 0) + 1 }
+  return true
+}
+
+export function surveyProjectFiles(cwd = process.cwd(), maxFiles = MAX_MINIMAP_FILES) {
+  try {
+    const out = execFileSync(
+      'git',
+      ['ls-files', '--cached', '--others', '--exclude-standard'],
+      { cwd, stdio: ['ignore', 'pipe', 'ignore'], encoding: 'utf8', timeout: 3000 },
+    )
+    return out
+      .split('\n')
+      .map(l => l.trim())
+      .filter(Boolean)
+      .slice(0, maxFiles)
+  } catch {
+    return []
+  }
+}
+
+export function summaryOfMinimap(list = [], visits = {}) {
+  const paths = [...new Set([...list, ...Object.keys(visits || {})])].filter(Boolean).sort()
+  let edited = 0
+  let read = 0
+  for (const p of paths) {
+    const x = visits?.[p]
+    if (x?.isEdited) edited++
+    else if ((x?.reads ?? 0) > 0) read++
+  }
+  const top = Object.entries(visits || {})
+    .filter(([, x]) => (x?.reads ?? 0) >= 2)
+    .sort((a, b) => b[1].reads - a[1].reads || a[0].localeCompare(b[0]))
+    .map(([filePath, x]) => ({ path: filePath, reads: x.reads }))
+  return {
+    paths,
+    total: paths.length,
+    edited,
+    read,
+    unexplored: paths.length - edited - read,
+    top,
+  }
+}
+
+export function groupsOfMinimap(paths = []) {
+  const groups = new Map()
+  for (const p of paths) {
+    const slash = p.indexOf('/')
+    const folder = slash === -1 ? '(root)' : p.slice(0, slash + 1)
+    groups.set(folder, [...(groups.get(folder) ?? []), p])
+  }
+  return [...groups].sort((a, b) =>
+    a[0] === '(root)' ? 1 : b[0] === '(root)' ? -1 : a[0].localeCompare(b[0]),
+  )
+}
+
+export function cellOfMinimap(visit) {
+  const kind = visit?.isEdited ? 'edited' : (visit?.reads ?? 0) > 0 ? 'read' : 'none'
+  const reads = visit?.reads ?? 0
+  if (reads >= 3) return { glyph: reads >= 10 ? '+' : String(reads), kind }
+  return { glyph: kind === 'edited' ? '█' : kind === 'read' ? '▓' : '░', kind }
+}
+
+export function formatMinimapLines(state, { cwd = process.cwd(), fileList = null, cellsPerRow = 28 } = {}) {
+  const list = Array.isArray(fileList) ? fileList : surveyProjectFiles(cwd)
+  const visits = state?.minimapVisits || {}
+  const s = summaryOfMinimap(list, visits)
+  const labelWidth = 16
+  const lines = [
+    `MINIMAP · 파일 ${s.total} · 편집 ${s.edited} · 읽음 ${s.read} · 미탐색 ${s.unexplored}`,
+  ]
+
+  for (const [folder, paths] of groupsOfMinimap(s.paths)) {
+    for (let at = 0; at < paths.length; at += cellsPerRow) {
+      const label = (at === 0 ? folder : '').padEnd(labelWidth).slice(0, labelWidth)
+      const cells = paths
+        .slice(at, at + cellsPerRow)
+        .map(p => cellOfMinimap(visits[p]).glyph)
+        .join('')
+      lines.push(`${label}${cells}`)
+    }
+  }
+
+  lines.push('█ 편집  ▓ 읽음  ░ 미탐색  3 = 세 번 읽음')
+  if (s.top.length > 0) {
+    lines.push(`가장 많이 다시 읽은 파일: ${s.top[0].path} (${s.top[0].reads}회)`)
+  }
+  return lines
+}
+
+export function formatMinimapBox(state, options = {}) {
+  const lines = formatMinimapLines(state, options)
+  return [
+    '╭─ GAME MODE · MINIMAP (/minimap) ─────────────────────────────────────╮',
+    ...lines.map(l => `│ ${l}`),
+    '╰──────────────────────────────────────────────────────────────────────╯',
+  ].join('\n')
+}
+
+// ---------------------------------------------------------------------------
+// 10. Dual-Screen (tmux Side-Pane) Renderer (/quest + /minimap + HUD)
+// ---------------------------------------------------------------------------
+
+export function formatDualScreenBoard(state, { cwd = process.cwd(), transcriptPath = null, fileList = null } = {}) {
+  const hp = estimateContextHp(transcriptPath)
+  const expPct = ((state.exp || 0) % 10) * 10
+  const branch = getGitBranch(cwd) || 'detached'
+  const isProtected = PROTECTED_BRANCH.test(branch)
+  const branchBadge = isProtected ? `${branch} ⚠보호` : branch
+  const passActive = state.passUntil > Date.now() ? ' · 🔓PASS ON' : ''
+
+  const hudLines = [
+    `🎮 LV ${String(state.level || 1).padStart(2, '0')}  EXP ${bar(expPct, 3)}  HP ${bar(hp, 4)} ${hp}%  COMBO ×${state.combo || 0} (MAX ×${state.maxCombo || 0})`,
+    `🗺️ MAP ${branchBadge}  ·  🛡️ GUARD ${(state.guardMode || 'block').toUpperCase()}${passActive}  ·  🔊 SFX ${state.earcons ? 'ON' : 'OFF'}`,
+  ]
+  const questLines = formatQuestLines(state)
+  const minimapLines = formatMinimapLines(state, { cwd, fileList })
+
+  return [
+    '╭─ GAME MODE · DUAL SCREEN (TMUX SIDE PANE) ───────────────────────────╮',
+    ...hudLines.map(l => `│ ${l}`),
+    '├─ 📜 QUEST LOG (/quest) ──────────────────────────────────────────────┤',
+    ...questLines.map(l => `│ ${l}`),
+    '├─ 🗺️ MINIMAP (/minimap) ──────────────────────────────────────────────┤',
+    ...minimapLines.map(l => `│ ${l}`),
+    '├──────────────────────────────────────────────────────────────────────┤',
+    '│ ▸ Commands: /quest · /minimap · /game:dual [on|off|open] · /game:hud │',
+    '╰──────────────────────────────────────────────────────────────────────╯',
+  ].join('\n')
+}
+
+export function isTmuxPaneAlive(paneId) {
+  if (!paneId) return false
+  try {
+    const out = execFileSync('tmux', ['list-panes', '-a', '-F', '#{pane_id}'], {
+      stdio: ['ignore', 'pipe', 'ignore'],
+      encoding: 'utf8',
+      timeout: 1500,
+    })
+    return out.split('\n').map(s => s.trim()).includes(String(paneId).trim())
+  } catch {
+    return false
+  }
+}
+
+export function syncTmuxSidePane(state, { cwd = process.cwd(), transcriptPath = null, fileList = null, forceOpen = false } = {}) {
+  const board = formatDualScreenBoard(state, { cwd, transcriptPath, fileList })
+  try {
+    fs.mkdirSync(STATE_DIR, { recursive: true })
+    fs.writeFileSync(DUAL_SCREEN_FILE, board + '\n', 'utf8')
+  } catch {
+    // ignore file write failure
+  }
+
+  if (state.dualScreen === false && !forceOpen) {
+    return { written: true, opened: false, paneId: state.tmuxPaneId || null, board }
+  }
+
+  const inTmux = Boolean(process.env.TMUX)
+  if (process.env.BITGAME_NO_TMUX === '1' || (!inTmux && !forceOpen)) {
+    return { written: true, opened: false, paneId: state.tmuxPaneId || null, board }
+  }
+
+  try {
+    if (state.tmuxPaneId && isTmuxPaneAlive(state.tmuxPaneId)) {
+      return { written: true, opened: false, paneId: state.tmuxPaneId, board }
+    }
+
+    const cliScript = path.join(__dirname, 'cli.mjs')
+    const paneCmd = `node "${cliScript.replace(/"/g, '\\"')}" pane-watch`
+    const paneId = execFileSync(
+      'tmux',
+      ['split-window', '-h', '-d', '-l', '52', '-P', '-F', '#{pane_id}', paneCmd],
+      { stdio: ['ignore', 'pipe', 'ignore'], encoding: 'utf8', timeout: 2500 },
+    ).trim()
+
+    if (paneId) {
+      state.tmuxPaneId = paneId
+      saveState(state)
+      return { written: true, opened: true, paneId, board }
+    }
+  } catch {
+    // non-fatal if tmux session is unavailable
+  }
+
+  return { written: true, opened: false, paneId: null, board }
+}
+
