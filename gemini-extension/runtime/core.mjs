@@ -964,7 +964,8 @@ export function syncTmuxSidePane(state, { cwd = process.cwd(), transcriptPath = 
     }
 
     const cliScript = path.join(__dirname, 'cli.mjs')
-    const paneCmd = `node "${cliScript.replace(/"/g, '\\"')}" pane-watch`
+    const nodeBin = process.execPath.replace(/"/g, '\\"')
+    const paneCmd = `"${nodeBin}" "${cliScript.replace(/"/g, '\\"')}" pane-watch`
     const paneId = execFileSync(
       'tmux',
       ['split-window', '-h', '-d', '-l', '52', '-P', '-F', '#{pane_id}', paneCmd],
