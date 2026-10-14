@@ -862,14 +862,14 @@ export function formatMinimapLines(state, { cwd = process.cwd(), fileList = null
   const list = Array.isArray(fileList) ? fileList : surveyProjectFiles(cwd)
   const visits = state?.minimapVisits || {}
   const s = summaryOfMinimap(list, visits)
-  const labelWidth = 16
+  const labelWidth = 18
   const lines = [
     `MINIMAP · 파일 ${s.total} · 편집 ${s.edited} · 읽음 ${s.read} · 미탐색 ${s.unexplored}`,
   ]
 
   for (const [folder, paths] of groupsOfMinimap(s.paths)) {
     for (let at = 0; at < paths.length; at += cellsPerRow) {
-      const label = (at === 0 ? folder : '').padEnd(labelWidth).slice(0, labelWidth)
+      const label = (at === 0 ? folder.slice(0, labelWidth - 1) : '').padEnd(labelWidth)
       const cells = paths
         .slice(at, at + cellsPerRow)
         .map(p => cellOfMinimap(visits[p]).glyph)
