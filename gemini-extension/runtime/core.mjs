@@ -18,6 +18,7 @@ export const STATE_FILE = path.join(STATE_DIR, 'state.json')
 export const CHOICE_FILE = path.join(STATE_DIR, 'last-choice.json')
 export const SAVES_FILE = path.join(STATE_DIR, 'saves.json')
 export const DUAL_SCREEN_FILE = path.join(STATE_DIR, 'dual-screen.txt')
+export const TMUX_BIN = fs.existsSync('/opt/homebrew/bin/tmux') ? '/opt/homebrew/bin/tmux' : 'tmux'
 
 const PASS_MS = 10 * 60 * 1000
 
@@ -55,7 +56,8 @@ function defaultState() {
     turns: 0,
     toolCalls: 0,
     trapsBlocked: 0,
-    earcons: true,
+    earcons: false,
+    autoFill: true,
     guardMode: 'block', // 'block' | 'warn' | 'off'
     passUntil: 0,
     streaks: {},
@@ -894,11 +896,103 @@ export function formatMinimapBox(state, options = {}) {
   ].join('\n')
 }
 
+export function loadChoice() {
+  try {
+    if (fs.existsSync(CHOICE_FILE)) return JSON.parse(fs.readFileSync(CHOICE_FILE, 'utf8'))
+  } catch {
+    // ignore
+  }
+  return null
+}
+
+export function saveChoice(data) {
+  try {
+    fs.mkdirSync(STATE_DIR, { recursive: true })
+    fs.writeFileSync(CHOICE_FILE, JSON.stringify(data, null, 2) + '\n', 'utf8')
+  } catch {
+    // ignore
+  }
+}
+
+export function bestOptionIndex(decision) {
+  if (!Array.isArray(decision?.options) || decision.options.length === 0) return 0
+  let bestIdx = 0
+  let bestP = -1
+  decision.options.forEach((o, idx) => {
+    if (typeof o?.p === 'number' && o.p > bestP) {
+      bestP = o.p
+      bestIdx = idx
+    }
+  })
+  return bestIdx
+}
+
+export function composeChoicePrompt(summary, selectedMap = {}) {
+  if (!summary?.resume) return { text: '', selected: {} }
+  const selected = {}
+  const pickedSentences = []
+  const decisions = Array.isArray(summary.decisions) ? summary.decisions : []
+
+  decisions.forEach((d, idx) => {
+    const rawPick = selectedMap?.[idx] ?? selectedMap?.[String(idx)]
+    const fallbackIdx = bestOptionIndex(d)
+    const optIdx =
+      Number.isInteger(rawPick) && rawPick >= 0 && rawPick < d.options.length
+        ? rawPick
+        : fallbackIdx
+    selected[idx] = optIdx
+    const chosen = d.options[optIdx]
+    if (chosen?.append) pickedSentences.push(chosen.append)
+  })
+
+  return {
+    text: [summary.resume, ...pickedSentences].join(' ').trim(),
+    selected,
+  }
+}
+
+export function formatChoiceLines(choiceData, { autoFill = true } = {}) {
+  const summary = choiceData?.summary
+  if (!summary?.resume) {
+    return [
+      'CHOICE CARD · 대기 중 ([상태 요약] 생성 시 다음 프롬프트가 자동완성됩니다)',
+    ]
+  }
+
+  const { text: composed, selected } = composeChoicePrompt(summary, choiceData?.selected || {})
+  const rankTag = choiceData?.ranked ? 'Jev AI 추천순' : '기본 추천순'
+  const fillTag = autoFill ? '입력창 자동완성 ON' : '클립보드 모드'
+  const lines = [`CHOICE CARD · ${rankTag} · ${fillTag}`]
+
+  if (Array.isArray(summary.decisions) && summary.decisions.length > 0) {
+    summary.decisions.forEach((d, idx) => {
+      const bestIdx = bestOptionIndex(d)
+      const pickedIdx = selected[idx] ?? bestIdx
+      const opts = d.options
+        .map((o, j) => {
+          const code = `${idx + 1}${String.fromCharCode(97 + j)}`
+          const check = j === pickedIdx ? '✓' : ''
+          const star = j === bestIdx ? '★' : ''
+          const pct = typeof o.p === 'number' ? `(${Math.round(o.p * 100)}%)` : ''
+          return `[${code}] ${check}${star}${o.label}${pct}`
+        })
+        .join('  ')
+      lines.push(`Q${idx + 1}. ${d.question}`)
+      lines.push(`  ▸ ${opts}`)
+    })
+  }
+
+  const preview = composed.length > 56 ? composed.slice(0, 55) + '…' : composed
+  lines.push(`📝 자동완성: ${preview}`)
+  lines.push('⌨️ 단축키: F1(1a) · F2(1b) · F3(1c/2a) 즉시교체 | 우측패널 1/2/Enter')
+  return lines
+}
+
 // ---------------------------------------------------------------------------
-// 10. Dual-Screen (tmux Side-Pane) Renderer (/quest + /minimap + HUD)
+// 10. Dual-Screen (tmux Side-Pane) Renderer (/quest + /minimap + Choice + HUD)
 // ---------------------------------------------------------------------------
 
-export function formatDualScreenBoard(state, { cwd = process.cwd(), transcriptPath = null, fileList = null } = {}) {
+export function formatDualScreenBoard(state, { cwd = process.cwd(), transcriptPath = null, fileList = null, choiceData = undefined } = {}) {
   const hp = estimateContextHp(transcriptPath)
   const expPct = ((state.exp || 0) % 10) * 10
   const branch = getGitBranch(cwd) || 'detached'
@@ -912,6 +1006,8 @@ export function formatDualScreenBoard(state, { cwd = process.cwd(), transcriptPa
   ]
   const questLines = formatQuestLines(state)
   const minimapLines = formatMinimapLines(state, { cwd, fileList })
+  const activeChoice = choiceData === undefined ? loadChoice() : choiceData
+  const choiceLines = formatChoiceLines(activeChoice, { autoFill: state.autoFill !== false })
 
   return [
     '╭─ GAME MODE · DUAL SCREEN (TMUX SIDE PANE) ───────────────────────────╮',
@@ -920,6 +1016,8 @@ export function formatDualScreenBoard(state, { cwd = process.cwd(), transcriptPa
     ...questLines.map(l => `│ ${l}`),
     '├─ 🗺️ MINIMAP (/minimap) ──────────────────────────────────────────────┤',
     ...minimapLines.map(l => `│ ${l}`),
+    '├─ ◆ CHOICE CARD (프롬프트 자동완성) ──────────────────────────────────┤',
+    ...choiceLines.map(l => `│ ${l}`),
     '├──────────────────────────────────────────────────────────────────────┤',
     '│ ▸ Commands: /quest · /minimap · /game:dual [on|off|open] · /game:hud │',
     '╰──────────────────────────────────────────────────────────────────────╯',
@@ -929,7 +1027,7 @@ export function formatDualScreenBoard(state, { cwd = process.cwd(), transcriptPa
 export function isTmuxPaneAlive(paneId) {
   if (!paneId) return false
   try {
-    const out = execFileSync('tmux', ['list-panes', '-a', '-F', '#{pane_id}'], {
+    const out = execFileSync(TMUX_BIN, ['list-panes', '-a', '-F', '#{pane_id}'], {
       stdio: ['ignore', 'pipe', 'ignore'],
       encoding: 'utf8',
       timeout: 1500,
@@ -937,6 +1035,111 @@ export function isTmuxPaneAlive(paneId) {
     return out.split('\n').map(s => s.trim()).includes(String(paneId).trim())
   } catch {
     return false
+  }
+}
+
+export function findMainTmuxPane(state) {
+  if (process.env.BITGAME_NO_TMUX === '1') return null
+  try {
+    const out = execFileSync(
+      TMUX_BIN,
+      ['list-panes', '-a', '-F', '#{session_name}\t#{pane_id}\t#{pane_current_command}\t#{pane_active}'],
+      { stdio: ['ignore', 'pipe', 'ignore'], encoding: 'utf8', timeout: 1500 },
+    )
+    const rows = out
+      .split('\n')
+      .map(l => l.trim())
+      .filter(Boolean)
+      .map(line => {
+        const [session, paneId, cmd, active] = line.split('\t')
+        return { session, paneId, cmd, active: active === '1' }
+      })
+      .filter(r => r.paneId && r.paneId !== state?.tmuxPaneId)
+
+    const bitgamePane = rows.find(r => r.session === 'bitgame' && r.active) || rows.find(r => r.session === 'bitgame')
+    if (bitgamePane) return bitgamePane.paneId
+    const activePane = rows.find(r => r.active)
+    return (activePane || rows[0])?.paneId || null
+  } catch {
+    return null
+  }
+}
+
+export function copyToClipboard(text) {
+  if (!text || process.env.BITGAME_NO_TMUX === '1') return false
+  try {
+    if (process.platform === 'darwin') {
+      execFileSync('pbcopy', [], { input: text, stdio: ['pipe', 'ignore', 'ignore'], timeout: 1500 })
+      return true
+    }
+  } catch {
+    // ignore
+  }
+  return false
+}
+
+export function fillTmuxMainPrompt(text, state, { delayMs = 0, focusMain = false } = {}) {
+  const clean = String(text || '').replace(/\r?\n+/g, ' ').trim()
+  if (!clean) return { filled: false, copied: false, paneId: null }
+  const copied = copyToClipboard(clean)
+  if (process.env.BITGAME_NO_TMUX === '1') {
+    return { filled: false, copied, paneId: null }
+  }
+
+  if (delayMs > 0) {
+    try {
+      const cliScript = path.join(__dirname, 'cli.mjs')
+      const child = spawn(
+        process.execPath,
+        ['-e', `setTimeout(() => { require('node:child_process').execFileSync(process.execPath, [${JSON.stringify(cliScript)}, 'fill-now'], { stdio: 'ignore' }) }, ${Number(delayMs) || 450})`],
+        { detached: true, stdio: 'ignore' },
+      )
+      child.unref()
+      return { filled: true, copied, paneId: 'delayed' }
+    } catch {
+      return { filled: false, copied, paneId: null }
+    }
+  }
+
+  const mainPane = findMainTmuxPane(state)
+  if (!mainPane) return { filled: false, copied, paneId: null }
+  try {
+    execFileSync(TMUX_BIN, ['send-keys', '-t', mainPane, 'C-e', 'C-u'], { stdio: 'ignore', timeout: 1500 })
+    execFileSync(TMUX_BIN, ['send-keys', '-t', mainPane, '-l', '--', clean], { stdio: 'ignore', timeout: 1500 })
+    if (focusMain) {
+      execFileSync(TMUX_BIN, ['select-pane', '-t', mainPane], { stdio: 'ignore', timeout: 1500 })
+    }
+    return { filled: true, copied, paneId: mainPane }
+  } catch {
+    return { filled: false, copied, paneId: null }
+  }
+}
+
+export function bindTmuxChoiceKeys() {
+  if (process.env.BITGAME_NO_TMUX === '1') return
+  try {
+    const cliScript = path.join(__dirname, 'cli.mjs')
+    const nodeBin = process.execPath.replace(/"/g, '\\"')
+    const scriptEsc = cliScript.replace(/"/g, '\\"')
+    const bindings = [
+      ['F1', '1a'],
+      ['F2', '1b'],
+      ['F3', '1c'],
+      ['F4', '2b'],
+      ['M-1', '1a'],
+      ['M-2', '1b'],
+      ['M-3', '1c'],
+      ['M-4', '2b'],
+    ]
+    for (const [key, code] of bindings) {
+      execFileSync(
+        TMUX_BIN,
+        ['bind-key', '-n', key, 'run-shell', '-b', `"${nodeBin}" "${scriptEsc}" pick ${code} --fill >/dev/null 2>&1`],
+        { stdio: 'ignore', timeout: 1500 },
+      )
+    }
+  } catch {
+    // ignore if tmux server is not running
   }
 }
 
@@ -953,20 +1156,23 @@ export function syncTmuxSidePane(state, { cwd = process.cwd(), transcriptPath = 
     return { written: true, opened: false, paneId: state.tmuxPaneId || null, board }
   }
 
-  const inTmux = Boolean(process.env.TMUX)
+  const paneAlive = state.tmuxPaneId && isTmuxPaneAlive(state.tmuxPaneId)
+  const inTmux = Boolean(process.env.TMUX) || paneAlive
   if (process.env.BITGAME_NO_TMUX === '1' || (!inTmux && !forceOpen)) {
     return { written: true, opened: false, paneId: state.tmuxPaneId || null, board }
   }
 
   try {
-    if (state.tmuxPaneId && isTmuxPaneAlive(state.tmuxPaneId)) {
+    bindTmuxChoiceKeys()
+    if (paneAlive) {
       return { written: true, opened: false, paneId: state.tmuxPaneId, board }
     }
 
     const cliScript = path.join(__dirname, 'cli.mjs')
-    const paneCmd = `node "${cliScript.replace(/"/g, '\\"')}" pane-watch`
+    const nodeBin = process.execPath.replace(/"/g, '\\"')
+    const paneCmd = `"${nodeBin}" "${cliScript.replace(/"/g, '\\"')}" pane-watch`
     const paneId = execFileSync(
-      'tmux',
+      TMUX_BIN,
       ['split-window', '-h', '-d', '-l', '52', '-P', '-F', '#{pane_id}', paneCmd],
       { stdio: ['ignore', 'pipe', 'ignore'], encoding: 'utf8', timeout: 2500 },
     ).trim()
@@ -982,4 +1188,5 @@ export function syncTmuxSidePane(state, { cwd = process.cwd(), transcriptPath = 
 
   return { written: true, opened: false, paneId: null, board }
 }
+
 

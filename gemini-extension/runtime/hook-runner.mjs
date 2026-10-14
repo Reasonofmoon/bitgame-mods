@@ -4,12 +4,15 @@
 
 import fs from 'node:fs'
 import {
-  CHOICE_FILE,
+  bestOptionIndex,
+  composeChoicePrompt,
   countHedges,
+  fillTmuxMainPrompt,
   formatHudBox,
   inspectBarrier,
   inspectPromptSpellCheck,
   inspectTrapGuard,
+  loadChoice,
   loadState,
   loopKeyOf,
   normalizeTool,
@@ -17,6 +20,7 @@ import {
   playSound,
   rankWithJev,
   recordMinimapVisit,
+  saveChoice,
   saveState,
   signatureOf,
   syncQuestsFromSummary,
@@ -37,15 +41,51 @@ function sendJson(obj) {
   process.stdout.write(JSON.stringify(obj) + '\n')
 }
 
+function readLastTranscriptResponse(transcriptPath) {
+  try {
+    if (!transcriptPath || !fs.existsSync(transcriptPath)) return ''
+    const stat = fs.statSync(transcriptPath)
+    const readSize = Math.min(stat.size, 65536)
+    const fd = fs.openSync(transcriptPath, 'r')
+    const buf = Buffer.alloc(readSize)
+    fs.readSync(fd, buf, 0, readSize, stat.size - readSize)
+    fs.closeSync(fd)
+    const lines = buf.toString('utf8').split('\n').filter(Boolean)
+    for (let i = lines.length - 1; i >= 0; i--) {
+      try {
+        const step = JSON.parse(lines[i])
+        if (step?.type === 'PLANNER_RESPONSE' && typeof step.content === 'string' && step.content.trim()) {
+          return step.content
+        }
+      } catch {
+        // ignore partial line at start of buffer
+      }
+    }
+  } catch {
+    // ignore
+  }
+  return ''
+}
+
 async function main() {
   const event = process.argv[2] || ''
   const input = readStdinJson()
   const state = loadState()
-  const cwd = input.cwd || process.cwd()
+  const isAgy =
+    event === 'AgySessionStart' ||
+    event === 'PreToolUse' ||
+    event === 'PostToolUse' ||
+    event === 'Stop' ||
+    Boolean(input.conversationId && !input.hook_event_name)
+  const cwd =
+    input.cwd ||
+    input.toolCall?.args?.Cwd ||
+    input.workspacePaths?.[0] ||
+    process.cwd()
   const transcriptPath = input.transcript_path || input.transcriptPath || null
 
-  // 1. SessionStart
-  if (event === 'SessionStart') {
+  // 1. SessionStart / AgySessionStart
+  if (event === 'SessionStart' || event === 'AgySessionStart') {
     state.streaks = {}
     state.lastTurnStartMs = Date.now()
     if (Array.isArray(state.quests) && state.quests.length > 0) {
@@ -53,6 +93,11 @@ async function main() {
     }
     saveState(state)
     const dual = syncTmuxSidePane(state, { cwd, transcriptPath })
+
+    if (isAgy) {
+      sendJson({})
+      return
+    }
 
     const dualBadge = dual.paneId ? `  ·  🖥️ DUAL(${dual.paneId})` : ''
     const saveHint = state.lastSavedPassword
@@ -108,10 +153,11 @@ async function main() {
     return
   }
 
-  // 3. BeforeTool (Trap Guard + Barrier + Loop Breaker)
-  if (event === 'BeforeTool') {
+  // 3. BeforeTool / PreToolUse (Trap Guard + Barrier + Loop Breaker)
+  if (event === 'BeforeTool' || event === 'PreToolUse') {
+    const allowOut = isAgy ? { decision: 'ask' } : {}
     if (state.guardMode === 'off') {
-      sendJson({})
+      sendJson(allowOut)
       return
     }
 
@@ -127,9 +173,13 @@ async function main() {
       if (Date.now() < state.passUntil) {
         state.passUntil = 0
         saveState(state)
-        sendJson({
-          systemMessage: `🔓 [PASS USED] /game:pass 일회성 통과권으로 ${finding.badge} (${finding.why}) 검사를 1회 통과했습니다.`,
-        })
+        sendJson(
+          isAgy
+            ? { decision: 'ask' }
+            : {
+                systemMessage: `🔓 [PASS USED] /game:pass 일회성 통과권으로 ${finding.badge} (${finding.why}) 검사를 1회 통과했습니다.`,
+              },
+        )
         return
       }
 
@@ -137,17 +187,25 @@ async function main() {
         state.trapsBlocked = (state.trapsBlocked || 0) + 1
         state.combo = 0
         saveState(state)
+        syncTmuxSidePane(state, { cwd, transcriptPath })
         playSound('block', state.earcons)
 
         const denyReason =
           `game-${finding.guard} blocked this call: it ${finding.why}. ` +
-          `Find a safe, reversible way or ask the user to run /game:pass to allow it once.`
+          `Find a safe, reversible way or ask the user to run /game:pass (or \`bitgame pass\`) to allow it once.`
 
-        sendJson({
-          decision: 'deny',
-          reason: denyReason,
-          systemMessage: `🛑 ${finding.badge} [${toolName}] 차단 — ${finding.why} (일회 허용: /game:pass)`,
-        })
+        sendJson(
+          isAgy
+            ? {
+                decision: 'deny',
+                reason: `🛑 ${finding.badge} [${toolName}] 차단 — ${denyReason}`,
+              }
+            : {
+                decision: 'deny',
+                reason: denyReason,
+                systemMessage: `🛑 ${finding.badge} [${toolName}] 차단 — ${finding.why} (일회 허용: /game:pass)`,
+              },
+        )
         return
       }
     }
@@ -162,22 +220,31 @@ async function main() {
         const held = state.streaks[key.id]
         state.trapsBlocked = (state.trapsBlocked || 0) + 1
         saveState(state)
+        syncTmuxSidePane(state, { cwd, transcriptPath })
         playSound('block', state.earcons)
-        sendJson({
-          decision: 'deny',
-          reason: `game-loop-breaker blocked this call: \`${held.label}\` already failed the same way ${held.count} times in a row. Change the code or arguments before retrying, or ask the user to run /game:pass.`,
-          systemMessage: `🔄 LOOP! [${held.label}] 봉인 — 동일 실패 ${held.count}회 연속 반복 차단 (/game:pass 로 해제 가능)`,
-        })
+        const loopReason = `game-loop-breaker blocked this call: \`${held.label}\` already failed the same way ${held.count} times in a row. Change the code or arguments before retrying, or ask the user to run /game:pass (or \`bitgame pass\`).`
+        sendJson(
+          isAgy
+            ? {
+                decision: 'deny',
+                reason: `🔄 LOOP! [${held.label}] 봉인 — ${loopReason}`,
+              }
+            : {
+                decision: 'deny',
+                reason: loopReason,
+                systemMessage: `🔄 LOOP! [${held.label}] 봉인 — 동일 실패 ${held.count}회 연속 반복 차단 (/game:pass 로 해제 가능)`,
+              },
+        )
         return
       }
     }
 
-    sendJson({})
+    sendJson(allowOut)
     return
   }
 
-  // 4. AfterTool (Battle Log Combo + Loop Breaker Streak + Item Get)
-  if (event === 'AfterTool') {
+  // 4. AfterTool / PostToolUse (Battle Log Combo + Loop Breaker Streak + Minimap + Quest)
+  if (event === 'AfterTool' || event === 'PostToolUse') {
     const toolName = input.tool_name || input.toolCall?.name || ''
     const toolInput = input.tool_input || input.toolCall?.args || {}
     const resp = input.tool_response || {}
@@ -228,18 +295,20 @@ async function main() {
 
       if (leveledUp) {
         playSound('done', state.earcons)
-        sendJson({
-          systemMessage: `⚔ BATTLE LOG ▸ ${toolName} CRIT COMBO ×${state.combo} · 🎉 LEVEL UP! → LV ${String(state.level).padStart(2, '0')}${unlocked.length ? ' · ' + unlocked.join(' ') : ''}`,
-        })
-        return
-      }
-
-      if (state.combo > 0 && state.combo % 5 === 0) {
+        if (!isAgy) {
+          sendJson({
+            systemMessage: `⚔ BATTLE LOG ▸ ${toolName} CRIT COMBO ×${state.combo} · 🎉 LEVEL UP! → LV ${String(state.level).padStart(2, '0')}${unlocked.length ? ' · ' + unlocked.join(' ') : ''}`,
+          })
+          return
+        }
+      } else if (state.combo > 0 && state.combo % 5 === 0) {
         playSound('hit', state.earcons)
-        sendJson({
-          systemMessage: `⚔ BATTLE LOG ▸ ${toolName} COMBO ×${state.combo}${unlocked.length ? ' · ' + unlocked.join(' ') : ''}`,
-        })
-        return
+        if (!isAgy) {
+          sendJson({
+            systemMessage: `⚔ BATTLE LOG ▸ ${toolName} COMBO ×${state.combo}${unlocked.length ? ' · ' + unlocked.join(' ') : ''}`,
+          })
+          return
+        }
       }
 
       sendJson({})
@@ -261,7 +330,7 @@ async function main() {
       saveState(state)
       syncTmuxSidePane(state, { cwd, transcriptPath })
 
-      if (count >= 2) {
+      if (count >= 2 && !isAgy) {
         const warnMsg =
           count >= 3
             ? `[GAME MODE · Loop Breaker] LOOP 3/3: \`${key.label}\` failed identically 3 times. The 4th identical call will be BLOCKED unless you change the code or arguments first.`
@@ -282,8 +351,8 @@ async function main() {
     return
   }
 
-  // 5. AfterAgent (HUD + Clear Time + Hedge Mark + Jev Choice Card + Dual Screen)
-  if (event === 'AfterAgent') {
+  // 5. AfterAgent / Stop (HUD + Clear Time + Hedge Mark + Jev Choice Card + Dual Screen)
+  if (event === 'AfterAgent' || event === 'Stop') {
     state.turns = (state.turns || 0) + 1
     const elapsedSec = Math.max(1, Math.round((Date.now() - (state.lastTurnStartMs || Date.now())) / 1000))
     const history = Array.isArray(state.turnDurationsMs) ? state.turnDurationsMs : []
@@ -294,8 +363,9 @@ async function main() {
     const diffSec = elapsedSec - medianSec
     const diffLabel = diffSec <= 0 ? `${diffSec}s` : `+${diffSec}s`
     state.turnDurationsMs = [...history.slice(-19), elapsedSec * 1000]
+    state.lastTurnStartMs = Date.now()
 
-    const responseText = input.prompt_response || ''
+    const responseText = input.prompt_response || readLastTranscriptResponse(transcriptPath) || ''
     const hedges = countHedges(responseText)
     const extraLines = [
       `⏱️ CLEAR ${elapsedSec}s (평소 대비 ${diffLabel})${hedges > 0 ? `  ·  ❓ HEDGE 추정 ${hedges}곳 (가설 주의)` : '  ·  ✓ 사실 기반 응답'}`,
@@ -303,38 +373,52 @@ async function main() {
 
     const parsed = parseStatusSummary(responseText)
     if (parsed) {
+      const prevChoice = loadChoice()
+      const isNewSummary = prevChoice?.summary?.resume !== parsed.resume
       syncQuestsFromSummary(state, parsed)
       const { summary, ranked, note } = await rankWithJev(parsed)
-      try {
-        fs.writeFileSync(
-          CHOICE_FILE,
-          JSON.stringify({ updatedAt: Date.now(), ranked, note, summary }, null, 2) + '\n',
-          'utf8',
-        )
-      } catch {
-        // ignore
+      const { text: composedPrompt, selected } = composeChoicePrompt(summary)
+      saveChoice({
+        updatedAt: Date.now(),
+        ranked,
+        note,
+        summary,
+        selected,
+        composedPrompt,
+      })
+
+      if (state.autoFill !== false && isNewSummary && composedPrompt) {
+        fillTmuxMainPrompt(composedPrompt, state, { delayMs: 450 })
       }
 
       if (summary.decisions.length > 0) {
-        extraLines.push(`◆ CHOICE CARD (${ranked ? 'Jev AI 랭킹 적용' : '기본 순서'}) — /game:pick <코드> 로 즉시 실행`)
+        extraLines.push(`◆ CHOICE CARD (${ranked ? 'Jev AI 랭킹 적용' : '기본 순서'}) — F1(1a)/F2(1b) 또는 /game:pick <코드>`)
         summary.decisions.forEach((d, idx) => {
+          const bestIdx = bestOptionIndex(d)
           const opts = d.options
             .map((o, j) => {
               const code = `${idx + 1}${String.fromCharCode(97 + j)}`
-              const star = j === 0 ? '★' : ''
-              return `[${code}] ${star}${o.label}`
+              const star = j === bestIdx ? '★' : ''
+              const pct = typeof o.p === 'number' ? `(${Math.round(o.p * 100)}%)` : ''
+              return `[${code}] ${star}${o.label}${pct}`
             })
             .join('   ')
           extraLines.push(`  Q${idx + 1}. ${d.question}  →  ${opts}`)
         })
       } else {
-        extraLines.push(`◆ NEXT PROMPT READY — /game:pick 입력 시 4번 재개 프롬프트로 바로 진행합니다.`)
+        extraLines.push(`◆ NEXT PROMPT READY — 입력창에 자동완성됨 (또는 /game:pick)`)
       }
     }
 
     saveState(state)
     syncTmuxSidePane(state, { cwd, transcriptPath })
     playSound('done', state.earcons)
+
+    if (isAgy) {
+      sendJson({ decision: '' })
+      return
+    }
+
     const hud = formatHudBox(state, { cwd, transcriptPath, extraLines })
     sendJson({ systemMessage: hud })
     return

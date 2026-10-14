@@ -10,7 +10,9 @@ import { fileURLToPath } from 'node:url'
 import {
   DUAL_SCREEN_FILE,
   cellOfMinimap,
+  composeChoicePrompt,
   countHedges,
+  formatChoiceLines,
   formatDualScreenBoard,
   formatHudBox,
   formatMinimapLines,
@@ -326,4 +328,78 @@ test('Dual-Screen board combines HUD, Quest Log, and Minimap for the tmux side p
     else process.env.BITGAME_NO_TMUX = prevNoTmux
   }
 })
+
+// ---------------------------------------------------------------------------
+// 9. Antigravity (agy) Hook Contract tests (PreToolUse, PostToolUse, Stop)
+// ---------------------------------------------------------------------------
+
+test('Hook Runner supports Antigravity (agy) PreToolUse, PostToolUse, and Stop contracts', () => {
+  const allowRes = runHook('PreToolUse', {
+    conversationId: 'test-conv',
+    toolCall: { name: 'run_command', args: { CommandLine: 'git status' } },
+  })
+  assert.equal(allowRes.decision, 'ask')
+
+  const denyRes = runHook('PreToolUse', {
+    conversationId: 'test-conv',
+    toolCall: { name: 'run_command', args: { CommandLine: 'git reset --hard HEAD~1' } },
+  })
+  assert.equal(denyRes.decision, 'deny')
+  assert.match(denyRes.reason, /BARRIER!/)
+
+  const postRes = runHook('PostToolUse', {
+    conversationId: 'test-conv',
+    toolCall: { name: 'view_file', args: { AbsolutePath: path.resolve(__dirname, '../../README.md') } },
+  })
+  assert.deepEqual(postRes, {})
+
+  const stopRes = runHook('Stop', {
+    conversationId: 'test-conv',
+    terminationReason: 'NO_TOOL_CALL',
+  })
+  assert.deepEqual(stopRes, { decision: '' })
+})
+
+test('Choice Card composes recommended/picked prompts and renders inside Dual-Screen board', () => {
+  const summary = {
+    resume: '저장소 변경사항을 정리해줘.',
+    decisions: [
+      {
+        question: '어떻게 배포할까요?',
+        options: [
+          { label: '로컬 유지', append: '로컬에만 둔다.', p: 0.1 },
+          { label: 'PR 머지', append: 'PR을 생성해 즉시 머지한다.', p: 0.9 },
+        ],
+      },
+    ],
+    done: ['기능 구현'],
+    todo: ['PR 머지'],
+    files: ['core.mjs'],
+  }
+
+  // Defaults to Jev highest probability option (index 1: 90%)
+  const defaultComposed = composeChoicePrompt(summary)
+  assert.equal(defaultComposed.text, '저장소 변경사항을 정리해줘. PR을 생성해 즉시 머지한다.')
+  assert.deepEqual(defaultComposed.selected, { 0: 1 })
+
+  // Explicit override to option 0 (1a)
+  const overrideComposed = composeChoicePrompt(summary, { 0: 0 })
+  assert.equal(overrideComposed.text, '저장소 변경사항을 정리해줘. 로컬에만 둔다.')
+
+  const choiceLines = formatChoiceLines(
+    { ranked: true, summary, selected: defaultComposed.selected },
+    { autoFill: true },
+  )
+  assert.match(choiceLines[0], /CHOICE CARD · Jev AI 추천순 · 입력창 자동완성 ON/)
+  assert.match(choiceLines.join('\n'), /\[1a\] 로컬 유지\(10%\)\s+\[1b\] ✓★PR 머지\(90%\)/)
+
+  const board = formatDualScreenBoard(
+    { level: 1, exp: 0, combo: 1, maxCombo: 1, guardMode: 'block', earcons: false, autoFill: true, passUntil: 0 },
+    { fileList: ['core.mjs'], choiceData: { ranked: true, summary, selected: defaultComposed.selected } },
+  )
+  assert.match(board, /◆ CHOICE CARD \(프롬프트 자동완성\)/)
+  assert.match(board, /🔊 SFX OFF/)
+})
+
+
 
