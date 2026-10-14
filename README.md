@@ -122,9 +122,9 @@ Try one without installing: `claude --plugin-dir ./plugins/game-trap-guard`.
 
 Requires **Claude Code 2.1.287 or later** (mods). Built and tested on 2.1.291. Coding agents: read [AGENTS.md](AGENTS.md) first.
 
-### Gemini CLI (0.40+)
+### Gemini CLI (0.40+) & Antigravity (`agy`)
 
-Clone and link the bundled [`gemini-extension/`](gemini-extension/README.md) (includes the 3 retro themes, Trap Guard, Barrier, Loop Breaker, Spell Check, Hedge Mark, 8-Bit HUD, Quest Log, Minimap, `tmux` Dual-Screen side pane, Earcons, Save Point, and Jev Choice `/game:*` commands):
+Clone and link the bundled [`gemini-extension/`](gemini-extension/README.md) (includes the 3 retro themes, Trap Guard, Barrier, Loop Breaker, Spell Check, Hedge Mark, 8-Bit HUD, Quest Log, Minimap, `tmux` Dual-Screen side pane, Earcons, Save Point, and Jev Choice `/game:*` commands + prompt autocomplete):
 
 ```bash
 git clone https://github.com/Reasonofmoon/bitgame-mods.git
@@ -133,7 +133,8 @@ bash scripts/check-gemini.sh
 gemini extensions link ./gemini-extension
 ```
 
-Switch themes inside Gemini CLI with `/theme` (`game-mode-nes`, `game-mode-gameboy`, `game-mode-amber`) and use `/quest`, `/minimap`, `/game:dual` (auto-renders `/quest` + `/minimap` in a right-hand `tmux` pane when running in `tmux`), `/game:hud`, `/game:pick`, `/game:save`, `/game:load`, `/game:pass`, `/game:earcons`.
+- **Gemini CLI**: Switch themes with `/theme` (`game-mode-nes`, `game-mode-gameboy`, `game-mode-amber`) and use `/quest`, `/minimap`, `/game:dual` (auto-renders `/quest` + `/minimap` + `◆ CHOICE CARD` in a right-hand `tmux` pane when running in `tmux`), `/game:hud`, `/game:pick`, `/game:save`, `/game:load`, `/game:pass`, `/game:earcons`.
+- **Antigravity (`agy`)**: Supports `AgySessionStart`, `PreToolUse`, `PostToolUse`, and `Stop` hooks via `gemini-extension/runtime/hook-runner.mjs`. When a turn finishes with `[상태 요약]`, the Jev-ranked recommended prompt is automatically filled into the main `tmux` input pane (and copied to clipboard), with instant option switching via `F1` (`1a`), `F2` (`1b`), `F3` (`1c`/`2a`) or pressing `1`/`2`/`Enter` in the Dual-Screen side pane.
 
 ---
 

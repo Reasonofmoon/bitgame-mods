@@ -28,9 +28,10 @@ gemini extensions link ./gemini-extension
    - `/game:hud` — Displays `LV`, `EXP`, `HP` (context remaining), `COMBO`, `MAP` (git branch protection), `INVENTORY`, and `ACHIEVEMENTS`.
    - `/quest` (or `/game:quest [clear | add <text> | done [n]]`) — Displays the task list as a quest log (`✓`, `▶`, `·`, with the final task marked `BOSS` and `★ ALL CLEAR! ★`), automatically synced with `[상태 요약]` and `TodoWrite`.
    - `/minimap` (or `/game:minimap [reset]`) — Draws the project's files as a map (`█` edited, `▓` read, `░` unexplored, `3+` re-read count) and highlights the most re-read hotspot file.
-   - `/game:dual [on|off|open]` — **Dual-Screen (`tmux` Side-Pane) Mode**: when running inside `tmux`, automatically opens and updates a right-hand `tmux` split pane that renders the 8-Bit HUD, `/quest`, and `/minimap` in real time on every tool call and turn completion.
-   - `/game:pick [1a]` — Composes the resume prompt from `[상태 요약]` with your chosen decision option (ranked via Jev when `TYPESAFE_API_KEY` is set).
+   - `/game:dual [on|off|open]` — **Dual-Screen (`tmux` Side-Pane) Mode**: when running inside `tmux`, automatically opens and updates a right-hand `tmux` split pane that renders the 8-Bit HUD, `/quest`, `/minimap`, and `◆ CHOICE CARD` in real time on every tool call and turn completion.
+   - `/game:pick [1a]` — Composes the resume prompt from `[상태 요약]` with your chosen decision option (ranked via Jev when `TYPESAFE_API_KEY` is set), copies it to the clipboard, and auto-fills the main `tmux` input box (`F1`/`F2`/`F3` or `1`/`2`/`Enter` in the side pane).
+   - `cli.mjs autofill [on|off]` — Toggles automatic prompt filling in the main `tmux` pane when a `[상태 요약]` turn completes.
    - `/game:save [note]` — Generates a `SPxx-XXXX-USER` password, copies the resume prompt to the clipboard, and plays the 8-bit `save.wav` cue.
    - `/game:load [password]` — Restores a saved session state and resumes work.
    - `/game:pass [block|warn|off|reset]` — Grants a 10-minute one-time pass for the next refused guard call.
-   - `/game:earcons [on|off|test]` — Toggles macOS 8-bit WAV sound effects (`afplay`).
+   - `/game:earcons [on|off|test]` — Toggles macOS 8-bit WAV sound effects (`afplay`, default: `OFF`).

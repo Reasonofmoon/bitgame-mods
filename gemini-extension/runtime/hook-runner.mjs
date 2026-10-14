@@ -408,6 +408,8 @@ async function main() {
       } else {
         extraLines.push(`◆ NEXT PROMPT READY — 입력창에 자동완성됨 (또는 /game:pick)`)
       }
+    } else if (responseText.trim()) {
+      saveChoice(null)
     }
 
     saveState(state)
