@@ -1,0 +1,6 @@
+description = "GAME MODE quest log: display or update the project quest list ([clear | add <text> | done [n]])"
+prompt = """
+Display the following GAME MODE Quest Log board verbatim in a code block without running any extra tools:
+
+!{node "${extensionPath}/runtime/cli.mjs" quest {{args}}}
+"""

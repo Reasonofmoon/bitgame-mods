@@ -1,0 +1,6 @@
+description = "GAME MODE dual-screen: open or toggle the right-hand tmux side pane rendering /quest and /minimap ([on|off|open])"
+prompt = """
+Display the following GAME MODE Dual-Screen status and board verbatim in a code block without running any extra tools:
+
+!{node "${extensionPath}/runtime/cli.mjs" dual {{args}}}
+"""
