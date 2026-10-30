@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="_ds/industry-ac1aee00-e58d-49ca-b405-ffd488802f6c/styles.css">
+<script src="_ds/industry-ac1aee00-e58d-49ca-b405-ffd488802f6c/_ds_bundle.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&family=Noto+Sans+KR:wght@400;500;700;900&display=swap" rel="stylesheet">
+<script src="./doc-page.js"></script>
+<script src="./image-slot.js"></script>
+<style>
+:root{--font-heading:"Barlow Condensed","Noto Sans KR",system-ui,sans-serif;--font-body:"Barlow","Noto Sans KR",system-ui,sans-serif;}
+doc-page:not(:defined){visibility:hidden}
+a{color:var(--color-accent-700);text-decoration:none}
+a:hover{color:var(--color-accent-900)}
+
+/* page shell */
+.pg{position:absolute;inset:0;padding:42px 52px 32px;display:flex;flex-direction:column;gap:16px;box-sizing:border-box;background:var(--color-bg);color:var(--color-text);font-family:var(--font-body);word-break:keep-all;}
+.pg.grid{background-image:linear-gradient(color-mix(in srgb,var(--color-accent) 7%,transparent) 1px,transparent 1px),linear-gradient(90deg,color-mix(in srgb,var(--color-accent) 7%,transparent) 1px,transparent 1px);background-size:34.5px 34.5px;}
+.pg.dark{background:var(--color-accent-900);color:var(--color-neutral-100);}
+.hd{display:flex;justify-content:space-between;align-items:baseline;gap:16px;font-family:var(--font-heading);font-size:11px;letter-spacing:0.14em;text-transform:uppercase;color:var(--color-accent-700);border-bottom:1px solid var(--color-divider);padding-bottom:9px;white-space:nowrap;}
+.dark .hd{color:var(--color-accent-300);border-bottom-color:color-mix(in srgb,var(--color-neutral-100) 22%,transparent);}
+.hd b{font-weight:700;color:var(--color-text);letter-spacing:0.12em;}
+.dark .hd b{color:var(--color-neutral-100);}
+.ft{margin-top:auto;display:flex;justify-content:space-between;gap:16px;border-top:1px solid var(--color-divider);padding-top:9px;font-size:10.5px;white-space:nowrap;color:var(--color-neutral-700);}
+.ft span:first-child{font-family:var(--font-heading);letter-spacing:0.1em;text-transform:uppercase;color:var(--color-accent-700);}
+.dark .ft{border-top-color:color-mix(in srgb,var(--color-neutral-100) 22%,transparent);color:var(--color-accent-200);}
+.dark .ft span:first-child{color:var(--color-accent-300);}
+
+/* type */
+.kick{font-family:var(--font-heading);font-size:11px;letter-spacing:0.14em;text-transform:uppercase;color:var(--color-accent-700);}
+.dark .kick{color:var(--color-accent-300);}
+.h2{margin:0;font-family:var(--font-heading);font-weight:700;font-size:34px;line-height:1.14;letter-spacing:-0.02em;text-wrap:balance;}
+.lede{margin:0;font-size:13px;line-height:1.65;max-width:600px;text-wrap:pretty;color:var(--color-neutral-800);}
+.dark .lede{color:var(--color-accent-200);}
+.titleblock{display:flex;flex-direction:column;gap:7px;}
+.fig{font-family:var(--font-heading);font-size:10.5px;letter-spacing:0.07em;text-transform:uppercase;color:var(--color-accent-700);margin-top:-8px;}
+.dark .fig{color:var(--color-accent-300);}
+
+/* browser-frame screenshot */
+.shot{position:relative;border:1px solid color-mix(in srgb,var(--color-text) 30%,transparent);background:#fff;box-shadow:var(--shadow-md);}
+.dark .shot{border-color:color-mix(in srgb,var(--color-neutral-100) 35%,transparent);box-shadow:0 18px 40px rgba(0,0,0,0.35);}
+.shot-bar{height:18px;display:flex;align-items:center;gap:4px;padding:0 8px;border-bottom:1px solid color-mix(in srgb,var(--color-text) 16%,transparent);background:var(--color-neutral-100);}
+.shot-bar i{width:6px;height:6px;border:1px solid var(--color-neutral-500);display:block;}
+.shot-bar span{margin-left:8px;font-family:ui-monospace,Consolas,monospace;font-size:8.5px;color:var(--color-neutral-600);letter-spacing:0.02em;white-space:nowrap;overflow:hidden;}
+.shot-body{position:relative;overflow:hidden;}
+.shot-body image-slot{position:absolute;inset:0;width:100%;height:100%;}
+.mk{position:absolute;z-index:3;width:19px;height:19px;display:flex;align-items:center;justify-content:center;background:var(--color-accent-700);color:#fff;font-family:var(--font-heading);font-weight:700;font-size:11px;outline:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,0.25);pointer-events:none;}
+
+/* blocks */
+.plate{padding:14px 18px;}
+.feat{display:flex;flex-direction:column;gap:3px;}
+.feat b{font-family:var(--font-heading);font-weight:700;font-size:14.5px;line-height:1.25;}
+.feat span{font-size:11.5px;line-height:1.55;color:var(--color-neutral-800);}
+.num{font-family:var(--font-heading);font-weight:700;font-size:26px;line-height:1;color:var(--color-accent);}
+.legend{display:flex;flex-direction:column;gap:12px;}
+.legend .row{display:grid;grid-template-columns:22px minmax(0,1fr);gap:10px;align-items:start;}
+.legend .row > .mk{position:static;display:flex;align-items:center;justify-content:center;outline:none;box-shadow:none;color:#fff;font-size:11px;line-height:1;margin-top:1px;}
+.legend b{display:block;font-family:var(--font-heading);font-weight:700;font-size:14px;line-height:1.3;}
+.legend span{display:block;font-size:11.5px;line-height:1.55;color:var(--color-neutral-800);}
+ul.ticks{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:6px;}
+ul.ticks li{position:relative;padding-left:14px;font-size:11.5px;line-height:1.5;}
+ul.ticks li::before{content:"";position:absolute;left:0;top:6px;width:6px;height:6px;border:1.5px solid var(--color-accent);}
+ul.ticks.x li::before{border-color:var(--color-neutral-500);background:transparent;transform:rotate(45deg);}
+.pref{font-family:var(--font-heading);font-size:10.5px;letter-spacing:0.08em;color:var(--color-accent-700);}
+.spec{width:100%;border-collapse:collapse;font-size:11.5px;}
+.spec th{text-align:left;font-family:var(--font-heading);font-weight:600;font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:var(--color-accent-700);padding:7px 10px 7px 0;border-bottom:1px solid var(--color-divider);vertical-align:top;white-space:nowrap;width:118px;}
+.spec td{padding:9px 0;border-bottom:1px solid var(--color-divider);line-height:1.5;}
+.pkg{display:flex;flex-direction:column;gap:8px;padding:16px 16px 18px;}
+.pkg .tier{font-family:var(--font-heading);font-size:11px;letter-spacing:0.14em;color:var(--color-accent-700);}
+.pkg h3{margin:0;font-family:var(--font-heading);font-weight:700;font-size:18px;line-height:1.2;}
+.pkg p{margin:0;font-size:11px;line-height:1.5;color:var(--color-neutral-700);min-height:33px;}
+.pkg.rec{background:var(--color-accent-100);}
+.badge{align-self:flex-start;font-family:var(--font-heading);font-size:10px;letter-spacing:0.12em;padding:2px 8px;background:var(--color-accent-700);color:#fff;}
+.faq{display:flex;flex-direction:column;gap:3px;}
+.faq b{font-family:var(--font-heading);font-weight:700;font-size:13.5px;}
+.faq span{font-size:11.5px;line-height:1.55;color:var(--color-neutral-800);}
+.node{display:flex;flex-direction:column;gap:4px;padding:10px 10px 12px;position:relative;}
+.node b{font-family:var(--font-heading);font-weight:700;font-size:14px;line-height:1.2;}
+.node span{font-size:10.5px;line-height:1.45;color:var(--color-neutral-700);}
+.arrow{display:flex;align-items:center;justify-content:center;color:var(--color-accent);}
+.chip{font-family:var(--font-heading);font-size:11px;letter-spacing:0.04em;padding:3px 9px;border:1px solid color-mix(in srgb,var(--color-neutral-100) 30%,transparent);color:var(--color-accent-200);white-space:nowrap;}
+.flow{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));}
+.flow > div{padding:10px 12px;border:1px solid var(--color-divider);margin-left:-1px;display:flex;flex-direction:column;gap:3px;}
+.flow b{font-family:var(--font-heading);font-weight:700;font-size:13.5px;}
+.flow span{font-size:10.5px;line-height:1.45;color:var(--color-neutral-700);}
+
+.phone{border:1px solid color-mix(in srgb,var(--color-text) 45%,transparent);padding:6px 4px 10px;background:#1d1f20;box-shadow:var(--shadow-md);}
+.dark .phone{border-color:color-mix(in srgb,var(--color-neutral-100) 45%,transparent);box-shadow:0 18px 40px rgba(0,0,0,0.45);}
+.phone-body{position:relative;overflow:hidden;background:#fff;}
+.phone-body image-slot{position:absolute;inset:0;width:100%;height:100%;}
+.cell{padding:11px 14px;border-right:1px solid var(--color-divider);border-bottom:1px solid var(--color-divider);display:flex;flex-direction:column;gap:4px;}
+.cell b{font-family:var(--font-heading);font-size:14.5px;}
+.cell span:last-child{font-size:11px;line-height:1.5;color:var(--color-neutral-700);}
+
+.paper{background:#fff;border:1px solid color-mix(in srgb,var(--color-text) 22%,transparent);box-shadow:var(--shadow-md);}
+.dark .paper{box-shadow:0 18px 40px rgba(0,0,0,0.45);border-color:color-mix(in srgb,var(--color-neutral-100) 40%,transparent);}
+.paper-body{position:relative;overflow:hidden;}
+.paper-body image-slot{position:absolute;inset:0;width:100%;height:100%;}
+
+@font-face{font-family:"Galmuri11";src:url("assets-bitgame/Galmuri11-Bold.woff2") format("woff2");font-weight:700;font-display:block;}
+.pixel{font-family:"Galmuri11",var(--font-heading);font-weight:700;}
+pre.code{margin:0;padding:12px 14px;background:#0b0b14;color:#d8e6ff;font-family:ui-monospace,Consolas,monospace;font-size:10px;line-height:1.6;white-space:pre-wrap;border:1px solid #3c3cfc;}
+code{font-family:ui-monospace,Consolas,monospace;font-size:0.92em;background:color-mix(in srgb,var(--color-accent) 12%,transparent);padding:0 3px;}
+.spec.mods th{width:auto;font-family:ui-monospace,Consolas,monospace;text-transform:none;letter-spacing:0;font-size:10.5px;color:var(--color-accent-700);padding-right:8px;}
+.spec.mods td{font-size:11px;padding-right:14px;}
+</style>
+<script>
+/* filled slots keep their src image; clear the empty-state ring once the page has settled */
+(function(){function mark(){document.querySelectorAll('image-slot[src]').forEach(function(s){if(!s.hasAttribute('data-filled'))s.setAttribute('data-filled','');});}
+window.addEventListener('load',function(){setTimeout(mark,200);setTimeout(mark,1200);});})();
+</script>
+</helmet>
+<doc-page size="a4">
+
+<!-- ============ 01 COVER ============ -->
+<section class="page" id="p1" data-screen-label="01 Cover">
+<div class="pg dark">
+<div class="hd"><span><b>BITGAME-MODS</b> &nbsp;·&nbsp; 앱 &amp; 서비스 카탈로그 No.05</span><span>v0.3.0 · 01 / 08</span></div>
+<span class="tag tag-outline" style="align-self:flex-start;font-size:11.5px;white-space:nowrap;color:var(--color-accent-200);border-color:color-mix(in srgb,var(--color-accent-200) 60%,transparent);">Claude Code 플러그인 마켓플레이스 · Gemini CLI 익스텐션 · MIT 라이선스</span>
+<div class="pixel" style="font-size:64px;line-height:1;color:#f8d830;letter-spacing:0.02em;text-shadow:4px 4px 0 #3c3cfc;">GAME MODE</div>
+<h1 style="margin:0;font-family:var(--font-heading);font-weight:700;font-size:38px;line-height:1.15;letter-spacing:-0.02em;">8비트 겉모습, <span style="color:var(--color-accent-300);">진짜로 일하는 요소</span></h1>
+<p class="lede" style="font-size:14px;max-width:600px;">Claude Code를 8비트 게임 화면처럼 꾸미되, 모든 요소가 실제 일을 합니다. HP는 남은 컨텍스트, MP는 요금제 한도, G는 이번 세션 비용이고, 함정과 결계는 비밀키 유출과 되돌릴 수 없는 명령을 실제로 막습니다.</p>
+<div class="shot blueprint" style="margin-top:4px;">
+<i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+<div class="shot-bar"><i></i><i></i><i></i><span>Claude Code · GAME MODE</span></div>
+<div class="shot-body" style="aspect-ratio:1720/1060;background:#000;"><image-slot id="bg-hero" shape="rect" fit="cover" src="assets-bitgame/hero-panel.png" placeholder="GAME MODE 패널"></image-slot></div>
+</div>
+<div class="fig" style="margin-top:-4px;">Fig. 01 — 전투 로그(HIT · CRIT · MISS · BLOCK)와 HUD(LV · HP · MP · G). 저장소 대표 이미지</div>
+<div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:0;border-top:1px solid color-mix(in srgb,var(--color-neutral-100) 22%,transparent);margin-top:auto;">
+<div style="padding:12px 14px 0 0;display:flex;flex-direction:column;gap:3px;"><span class="pixel" style="font-size:28px;line-height:1;color:var(--color-neutral-100);">22</span><span style="font-size:11px;line-height:1.45;color:var(--color-accent-200);">원하는 것만 골라<br>설치하는 Mod</span></div>
+<div style="padding:12px 14px 0;border-left:1px solid color-mix(in srgb,var(--color-neutral-100) 22%,transparent);display:flex;flex-direction:column;gap:3px;"><span class="pixel" style="font-size:28px;line-height:1;color:var(--color-neutral-100);">3</span><span style="font-size:11px;line-height:1.45;color:var(--color-accent-200);">실제로 막는 가드<br>TRAP · BARRIER · LOOP</span></div>
+<div style="padding:12px 14px 0;border-left:1px solid color-mix(in srgb,var(--color-neutral-100) 22%,transparent);display:flex;flex-direction:column;gap:3px;"><span class="pixel" style="font-size:28px;line-height:1;color:var(--color-neutral-100);">173</span><span style="font-size:11px;line-height:1.45;color:var(--color-accent-200);">claude plugin test<br>통과 (0.3.0)</span></div>
+<div style="padding:12px 0 0 14px;border-left:1px solid color-mix(in srgb,var(--color-neutral-100) 22%,transparent);display:flex;flex-direction:column;gap:3px;"><span class="pixel" style="font-size:28px;line-height:1;color:var(--color-neutral-100);">0</span><span style="font-size:11px;line-height:1.45;color:var(--color-accent-200);">런타임 의존성 ·<br>빌드 단계 없음</span></div>
+</div>
+<div class="ft" style="margin-top:14px;"><span>오픈소스 · MIT</span><span>github.com/Reasonofmoon/bitgame-mods · soundfury37@gmail.com</span></div>
+</div>
+</section>
+
+<!-- ============ 02 OVERVIEW ============ -->
+<section class="page" id="p2" data-screen-label="02 Overview">
+<div class="pg grid">
+<div class="hd"><span><b>00</b> &nbsp;·&nbsp; 한눈에 보기</span><span>02 / 08</span></div>
+<div class="titleblock">
+<span class="kick">One rule</span>
+<h2 class="h2">장식만 하는 HUD는 소음이다</h2>
+<p class="lede">bitgame-mods는 Claude Code 엔진 안에서 돌아가는 작은 훅 모듈(Mod) 모음입니다. 규칙은 하나, 모든 게임 요소는 실제 숫자를 보여 주거나, 실제 피해를 막거나, 실제 시간을 아낍니다. 순수 장식 변경은 이유가 필요합니다.</p>
+</div>
+<div style="display:flex;flex-direction:column;gap:8px;">
+<span class="kick">기본 Claude Code와 비교</span>
+<table class="spec">
+<tr><th></th><td style="font-family:var(--font-heading);font-weight:700;font-size:12.5px;width:42%;">기본 Claude Code</td><td style="font-family:var(--font-heading);font-weight:700;font-size:12.5px;">GAME MODE</td></tr>
+<tr><th>컨텍스트·한도·비용</th><td>/context, /cost를 그때그때 입력</td><td>입력창 위에 항상 표시, HP가 낮으면 휴식·세이브 버튼</td></tr>
+<tr><th>비밀키 출력·기록</th><td>권한 확인 창이 뜨면 판단</td><td>실행 전에 거부하고 대신 할 일을 알려 줌</td></tr>
+<tr><th>reset --hard · main 강제 푸시</th><td>권한 확인 창이 뜨면 판단</td><td>거부, 사람이 직접 친 1회용 pass만 통과</td></tr>
+<tr><th>같은 실패 4번째</th><td>그대로 다시 실행</td><td>무언가 바뀌기 전까지 거부</td></tr>
+<tr><th>“제대로 고쳐줘”</th><td>Claude가 끝을 짐작</td><td>Claude가 완료 조건부터 적음</td></tr>
+<tr><th>추측을 사실처럼</th><td>다른 문장과 똑같이 읽힘</td><td>[?] 표시와 개수 집계</td></tr>
+<tr><th>내일 이어 하기</th><td>--continue 후 다시 설명</td><td>타이틀 화면, Tab 또는 /load 패스워드</td></tr>
+</table>
+</div>
+<div style="display:flex;flex-direction:column;gap:8px;">
+<span class="kick">4단계 구성</span>
+<div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));border-top:1px solid var(--color-divider);border-left:1px solid var(--color-divider);">
+<div class="cell"><span class="pref">P1 · 7 Mods · P.03–04</span><b>안전과 비용</b><span>HUD, 전투 로그, 트랩 가드, 결계, 루프 차단, 세이브 포인트, 효과음</span></div>
+<div class="cell"><span class="pref">P2 · 8 Mods · P.05</span><b>흐름 파악</b><span>STANCE, CASTING, CLEAR, PARTY, QUEST, MINIMAP, 힌트, MAP</span></div>
+<div class="cell"><span class="pref">P3 · 6 Mods · P.06</span><b>좋은 습관</b><span>스펠 체크, 지난번 선택, 추정 표시, ITEM GET, EQUIP, 업적</span></div>
+<div class="cell"><span class="pref">P4 · 1 Mod · P.06</span><b>이어 하기</b><span>CHOICE: 상태 요약의 재개 프롬프트와 결정 버튼</span></div>
+</div>
+</div>
+<p style="margin:0;font-size:10px;line-height:1.5;color:var(--color-neutral-600);">이 카탈로그의 화면은 저장소에 실린 실제 녹화 세션(Claude Code 2.1.291, 터미널 150×46, 2분 49초)과 스크린샷에서 가져왔습니다.</p>
+<div class="ft"><span>bitgame-mods · 앱 &amp; 서비스 카탈로그</span><span>github.com/Reasonofmoon/bitgame-mods</span></div>
+</div>
+</section>
+
+<!-- ============ 03 GUARDS ============ -->
+<section class="page" id="p3" data-screen-label="03 Guards">
+<div class="pg">
+<div class="hd"><span><b>01</b> &nbsp;·&nbsp; P1 안전과 비용 · 가드</span><span>03 / 08</span></div>
+<div class="titleblock">
+<h2 class="h2">TRAP! · BARRIER! · LOOP! — 진짜로 막는다</h2>
+<p class="lede">세 가드는 도구 호출이 실행되기 전에 읽고, 위험하면 거부합니다. 거부 문구는 항상 <code>game-… blocked this call:</code>로 시작하고 무엇을 대신할지 알려 주며, 전투 로그와 효과음이 같은 문구로 반응합니다.</p>
+</div>
+<div class="shot blueprint">
+<i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+<div class="shot-bar"><i></i><i></i><i></i><span>녹화 세션 0:52–1:20 · cat .env → TRAP! · git reset --hard → BARRIER! · 같은 실패 4번째 → LOOP!</span></div>
+<div class="shot-body" style="aspect-ratio:900/676;background:#000;"><image-slot id="bg-guards" shape="rect" fit="cover" src="assets-bitgame/guards.gif" placeholder="가드 GIF"></image-slot></div>
+</div>
+<div class="fig">Fig. 02 — 가드가 실제로 거부하는 장면 (녹화 영상에서 추출한 GIF · 인쇄본은 TRAP · BARRIER 장면)</div>
+<div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:0;border:1px solid var(--color-divider);">
+<div class="feat" style="padding:12px 14px;"><span class="pref">TRAP GUARD</span><b>비밀키 유출 차단</b><span>명령·URL·소스의 실제 키, cat .env, echo $API_KEY, id_rsa·*.pem 읽기</span></div>
+<div class="feat" style="padding:12px 14px;border-left:1px solid var(--color-divider);"><span class="pref">BARRIER</span><b>되돌릴 수 없는 명령 차단</b><span>main 강제 푸시·삭제, reset --hard, clean -f, 프로젝트 밖 rm -r, npm publish, DROP TABLE</span></div>
+<div class="feat" style="padding:12px 14px;border-left:1px solid var(--color-divider);"><span class="pref">LOOP BREAKER</span><b>헛된 재시도 차단</b><span>같은 방식으로 3번 연속 실패한 호출의 4번째 실행, 무언가 바뀌면 풀림</span></div>
+</div>
+<pre class="code">game-trap-guard blocked this call: it prints a .env file into the conversation (.env). …
+game-barrier blocked this call: it discards uncommitted changes (git reset --hard). …
+game-loop-breaker blocked this call: `ls /nonexistent-dir-xyz` already failed the same way 3 times …</pre>
+<div class="ft"><span>bitgame-mods · 앱 &amp; 서비스 카탈로그</span><span>github.com/Reasonofmoon/bitgame-mods</span></div>
+</div>
+</section>
+
+<!-- ============ 04 HUD / SAVE ============ -->
+<section class="page" id="p4" data-screen-label="04 HUD and save">
+<div class="pg">
+<div class="hd"><span><b>02</b> &nbsp;·&nbsp; P1 안전과 비용 · HUD · 세이브 포인트</span><span>04 / 08</span></div>
+<div class="titleblock">
+<h2 class="h2">HP는 컨텍스트, 세이브는 내일의 나에게</h2>
+<p class="lede">입력창 위 HUD가 남은 컨텍스트(HP), 요금제 한도(MP), 세션 비용(G, 기본 ₩)을 늘 보여 주고, HP가 낮아지면 휴식(/compact)과 세이브(/save) 버튼을 띄웁니다. /save는 한 일·남은 일·결정·파일·재개 프롬프트를 세이브 화면으로 남기고 패스워드를 클립보드에 복사합니다.</p>
+</div>
+<div class="shot blueprint">
+<i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+<div class="shot-bar"><i></i><i></i><i></i><span>녹화 세션 1:50–2:04 · /save → 세이브 화면 · PASSWORD COPIED · HUD SAVED · ★ 첫 세이브</span></div>
+<div class="shot-body" style="aspect-ratio:900/676;background:#000;"><image-slot id="bg-save" shape="rect" fit="cover" src="assets-bitgame/save.gif" placeholder="세이브 GIF"></image-slot></div>
+</div>
+<div class="fig">Fig. 03 — /save 세이브 화면 (GIF)</div>
+<div style="display:grid;grid-template-columns:300px minmax(0,1fr);gap:22px;align-items:start;">
+<div style="display:flex;flex-direction:column;gap:12px;">
+<div class="shot blueprint"><i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+<div class="shot-bar"><i></i><i></i><i></i><span>다음 세션 시작</span></div>
+<div class="shot-body" style="aspect-ratio:1390/1044;background:#000;"><image-slot id="bg-title" shape="rect" fit="cover" src="assets-bitgame/shot-title.png" placeholder="타이틀 화면"></image-slot></div></div>
+<div class="fig" style="margin-top:-6px;">Fig. 04 — 타이틀 화면 · HUD · EQUIP · MAP · STANCE</div>
+</div>
+<ul class="ticks">
+<li><b>HUD</b> — LV · EXP · HP · MP · G, 상태 태그(READY · HP LOW! · REST · SAVED · LEVEL UP!)</li>
+<li><b>전투 로그</b> — TURN, HIT · CRIT · MISS · BLOCK, COMBO ×n → BREAK, 편집 +추가 −삭제 줄 수</li>
+<li><b>세이브 포인트</b> — 프로젝트당 5칸, /load 패스워드로 다른 프로젝트에서도 이어 하기, 세이브가 있는 폴더는 타이틀 화면(CONTINUE · NEW GAME · LOAD)으로 시작</li>
+<li><b>효과음</b> — 질문 대기, 긴 턴 종료, 가드 거부, 세이브 때 8비트 효과음 (macOS · Windows · Linux)</li>
+</ul>
+</div>
+<div class="ft"><span>bitgame-mods · 앱 &amp; 서비스 카탈로그</span><span>github.com/Reasonofmoon/bitgame-mods</span></div>
+</div>
+</section>
+
+<!-- ============ 05 KEEPING TRACK ============ -->
+<section class="page" id="p5" data-screen-label="05 Keeping track">
+<div class="pg">
+<div class="hd"><span><b>03</b> &nbsp;·&nbsp; P2 흐름 파악</span><span>05 / 08</span></div>
+<div class="titleblock">
+<h2 class="h2">지금 무엇을 하고, 얼마가 들고, 어디까지 왔나</h2>
+<p class="lede">스피너는 지금 실행 중인 호출과 이번 턴 비용을, 하단 배지는 권한 모드를, 상태줄은 브랜치와 플레이 시간을 보여 줍니다. 서브에이전트, 할 일 목록, 파일 탐색 현황은 오른쪽 패널(PARTY · QUEST · MINIMAP)로 엽니다.</p>
+</div>
+<div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px;">
+<div style="display:flex;flex-direction:column;gap:12px;">
+<div class="shot blueprint"><i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+<div class="shot-bar"><i></i><i></i><i></i><span>Turn 1</span></div>
+<div class="shot-body" style="aspect-ratio:1390/1044;background:#000;"><image-slot id="bg-battle" shape="rect" fit="cover" src="assets-bitgame/shot-battle.png" placeholder="Turn 1"></image-slot></div></div>
+<div class="fig" style="margin-top:-6px;">Fig. 05 — P1 창 · 완료 조건 · TURN 1 · COMBO · CASTING · PARTY</div>
+</div>
+<div style="display:flex;flex-direction:column;gap:12px;">
+<div class="shot blueprint"><i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+<div class="shot-bar"><i></i><i></i><i></i><span>다음 세션 · 패널</span></div>
+<div class="shot-body" style="aspect-ratio:1390/1044;background:#000;"><image-slot id="bg-panes" shape="rect" fit="cover" src="assets-bitgame/shot-panes.png" placeholder="패널"></image-slot></div></div>
+<div class="fig" style="margin-top:-6px;">Fig. 06 — 이어진 퀘스트 로그 · 읽은 파일이 칠해진 미니맵</div>
+</div>
+</div>
+<div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));border-top:1px solid var(--color-divider);border-left:1px solid var(--color-divider);">
+<div class="cell"><span class="pref">STANCE</span><b>권한 모드 배지</b><span>기본 · 자동 승인 · 계획 등, shift+tab을 따라감</span></div>
+<div class="cell"><span class="pref">CASTING</span><b>지금 하는 일</b><span>실행 중 호출 · 행동 수 · 이번 턴 G</span></div>
+<div class="cell"><span class="pref">CLEAR</span><b>턴 기록</b><span>최근 20턴 중앙값 대비 ±시간</span></div>
+<div class="cell"><span class="pref">PARTY</span><b>서브에이전트</b><span>ACTIVE · CLEAR · FAIL, 호출 막대</span></div>
+<div class="cell"><span class="pref">QUEST</span><b>할 일 = 퀘스트</b><span>✓ ▶ · · 마지막은 BOSS, 세션 넘어 유지</span></div>
+<div class="cell"><span class="pref">MINIMAP</span><b>파일 지도</b><span>편집 · 읽음 · 미탐색, 반복해서 읽는 파일</span></div>
+<div class="cell"><span class="pref">HINT</span><b>지금 누를 것</b><span>ESC 후퇴 · /compact 휴식 · 오류부터 읽기</span></div>
+<div class="cell"><span class="pref">MAP</span><b>브랜치 · 플레이 시간</b><span>보호 브랜치에 ⚠ 보호 표시</span></div>
+</div>
+<div class="blueprint plate" style="display:grid;grid-template-columns:auto minmax(0,1fr);gap:16px;align-items:start;background:color-mix(in srgb,var(--color-accent) 7%,var(--color-bg));">
+<i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+<span class="kick" style="white-space:nowrap;">함께 쓰면</span>
+<span style="font-size:11.5px;line-height:1.6;">HUD의 ‘세이브’ 버튼은 /save를 실행하고, 전투 로그는 각 가드의 거부를 이름 붙여 보여 주며, 효과음은 거부와 세이브에 반응합니다. 힌트 줄과 HUD는 같은 ‘남은 컨텍스트’를 읽고, 세이브 포인트의 ‘Tab 이어하기’와 힌트의 ‘/save 세이브’가 힌트 줄을 나눠 씁니다. 연결은 평범한 문구와 엔진 이벤트뿐이라, 어느 조합으로 설치해도 동작합니다.</span>
+</div>
+<div class="ft"><span>bitgame-mods · 앱 &amp; 서비스 카탈로그</span><span>github.com/Reasonofmoon/bitgame-mods</span></div>
+</div>
+</section>
+
+<!-- ============ 06 HABITS / CHOICE ============ -->
+<section class="page" id="p6" data-screen-label="06 Habits">
+<div class="pg">
+<div class="hd"><span><b>04</b> &nbsp;·&nbsp; P3 좋은 습관 · P4 이어 하기</span><span>06 / 08</span></div>
+<div class="titleblock">
+<h2 class="h2">모호한 지시와 추측을 눈에 보이게</h2>
+<p class="lede">‘적당히’ 같은 모호한 말은 입력하는 순간 밑줄이 그어지고, 완료 조건 없는 지시에는 Claude가 끝나는 기준부터 적습니다. 답변 속 추측 문장에는 [?]가 붙어 확인된 사실과 가설이 구분됩니다.</p>
+</div>
+<div class="shot blueprint">
+<i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+<div class="shot-bar"><i></i><i></i><i></i><span>추측 표시 · Hedge mark</span></div>
+<div class="shot-body" style="aspect-ratio:1390/700;background:#000;"><image-slot id="bg-hedge" shape="rect" fit="cover" src="assets-bitgame/shot-hedge-top.png" placeholder="추측 표시"></image-slot></div>
+</div>
+<div class="fig">Fig. 07 — CLAUDE 창의 추측 문장 [?] 표시 · ‘? 추정 3곳’</div>
+<div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));border-top:1px solid var(--color-divider);border-left:1px solid var(--color-divider);">
+<div class="cell"><span class="pref">SPELL CHECK</span><b>모호어·비밀 표시</b><span>밑줄, 힌트 줄 경고, 완료 조건 요청</span></div>
+<div class="cell"><span class="pref">ANSWER MEMORY</span><b>★ 지난번 선택</b><span>같은 질문에 지난번 고른 답 표시</span></div>
+<div class="cell"><span class="pref">HEDGE MARK</span><b>[?] 추측 표시</b><span>CLAUDE 창, 추정 개수 집계</span></div>
+<div class="cell"><span class="pref">ITEM GET</span><b>새 파일 강조</b><span>ITEM GET! 경로 · 새 파일 n줄 · /inventory</span></div>
+<div class="cell"><span class="pref">EQUIP</span><b>사용 중 모델</b><span>시작 시와 모델이 바뀔 때마다</span></div>
+<div class="cell"><span class="pref">ACHIEVEMENT</span><b>좋은 습관 업적</b><span>첫 세이브, 안전한 커밋 10회, 역전승 등</span></div>
+</div>
+<div class="blueprint plate" style="display:grid;grid-template-columns:auto minmax(0,1fr);gap:16px;align-items:start;background:color-mix(in srgb,var(--color-accent) 7%,var(--color-bg));">
+<i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+<span class="kick" style="white-space:nowrap;">P4 · CHOICE</span>
+<span style="font-size:11.5px;line-height:1.6;">답변이 <b>[상태 요약]</b>으로 끝나면 재개 프롬프트가 입력창 제안(Tab)이 되고, 결정 항목은 입력창 위 버튼(<code>다음 할 일 결정</code>, <code>Q1. …</code>)이 됩니다. 고를 때마다 문장이 붙고, 모두 고르면 한 문단으로 다듬어집니다. Jev(typesafe.ai)가 뒤에서 순위를 매기지만 기본 섀도 모드에서는 확률을 숨기고 기록만 합니다. Jev 기능에는 <code>TYPESAFE_API_KEY</code>가 필요하고 요약이 외부로 전송되므로, 비공개 작업에서는 끌 수 있습니다.</span>
+</div>
+<div class="ft"><span>bitgame-mods · 앱 &amp; 서비스 카탈로그</span><span>github.com/Reasonofmoon/bitgame-mods</span></div>
+</div>
+</section>
+
+<!-- ============ 07 22 MODS ============ -->
+<section class="page" id="p7" data-screen-label="07 22 mods">
+<div class="pg">
+<div class="hd"><span><b>05</b> &nbsp;·&nbsp; 22 Mods 전체 목록</span><span>07 / 08</span></div>
+<div class="titleblock">
+<h2 class="h2">필요한 Mod만 골라 장착</h2>
+<p class="lede">각 Mod는 따로 동작합니다. 연결은 평범한 문구(<code>game-… blocked this call:</code>)나 엔진 이벤트로만 하므로 일부만 설치해도 깨지지 않습니다.</p>
+</div>
+<table class="spec mods">
+<tr><th>01 game-hud</th><td>LV · EXP · HP · MP · G, 휴식·세이브 버튼</td><th>12 game-quest</th><td>/quest 할 일 퀘스트 로그</td></tr>
+<tr><th>02 game-battle-log</th><td>TURN · HIT · MISS · COMBO · 가드 판정</td><th>13 game-minimap</th><td>/minimap 파일 탐색 지도</td></tr>
+<tr><th>03 game-trap-guard</th><td>비밀키 유출 거부</td><th>14 game-hint</th><td>힌트 줄에 지금 누를 것</td></tr>
+<tr><th>04 game-barrier</th><td>되돌릴 수 없는 명령 거부</td><th>15 game-map</th><td>브랜치 · 보호 표시 · 플레이 시간</td></tr>
+<tr><th>05 game-loop-breaker</th><td>같은 실패 4번째 거부</td><th>16 game-spell-check</th><td>모호어 · 비밀 · 완료 조건</td></tr>
+<tr><th>06 game-save-point</th><td>/save · /load · 타이틀 화면</td><th>17 game-answer-memory</th><td>★ 지난번 선택</td></tr>
+<tr><th>07 game-earcons</th><td>8비트 효과음 (3개 OS)</td><th>18 game-hedge-mark</th><td>[?] 추측 표시</td></tr>
+<tr><th>08 game-stance</th><td>권한 모드 배지</td><th>19 game-item-get</th><td>ITEM GET! · /inventory</td></tr>
+<tr><th>09 game-casting</th><td>실행 중 호출 · 턴 비용</td><th>20 game-equip</th><td>EQUIP 모델 표시</td></tr>
+<tr><th>10 game-clear-time</th><td>CLEAR 턴 시간 비교</td><th>21 game-achievement</th><td>업적 · /achievements</td></tr>
+<tr><th>11 game-party</th><td>/party 서브에이전트 패널</td><th>22 game-choice</th><td>재개 프롬프트 · 결정 버튼</td></tr>
+</table>
+<div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px;">
+<div class="blueprint plate" style="display:flex;flex-direction:column;gap:8px;">
+<i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+<span class="kick">설정 (/plugin configure)</span>
+<ul class="ticks">
+<li>intensity: off · casual(기본) · hardcore</li>
+<li>palette: nes(기본) · gameboy · amber · theme</li>
+<li>currency: krw(기본, 1 USD = 1,400원) · usd</li>
+<li>가드 mode: block(기본) · warn · off</li>
+</ul>
+</div>
+<div class="blueprint plate" style="display:flex;flex-direction:column;gap:8px;">
+<i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+<span class="kick">가드 해제는 사람만</span>
+<span style="font-size:11.5px;line-height:1.6;"><b>pass</b>는 다음 거부 1건을 10분 안에 한 번만 통과시킵니다. pass · warn · off는 <b>사람이 직접 입력</b>했을 때만 받아들이므로, Claude가 명령을 실행해 가드를 스스로 풀 수 없습니다.</span>
+</div>
+</div>
+<div class="blueprint plate" style="display:flex;flex-direction:column;gap:8px;">
+<i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+<span class="kick">다음 계획 (ROADMAP)</span>
+<div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:4px 22px;">
+<span style="font-size:11px;line-height:1.5;">□ 트랩 가드: .envrc, 프로젝트 .npmrc의 _authToken</span>
+<span style="font-size:11px;line-height:1.5;">□ 결계: 명령에 나온 스크립트(./deploy.sh) 한 단계 열어 보기</span>
+<span style="font-size:11px;line-height:1.5;">□ 루프 차단: 폴링·서버 부팅 대기 인식</span>
+<span style="font-size:11px;line-height:1.5;">□ 세이브: 긴 턴 끝에 Claude가 스스로 저장하는 도구</span>
+<span style="font-size:11px;line-height:1.5;">□ 효과음: 업적 효과음</span>
+<span style="font-size:11px;line-height:1.5;">□ Windows Terminal + Galmuri Mono 녹화 세션</span>
+</div>
+</div>
+<div class="ft"><span>bitgame-mods · 앱 &amp; 서비스 카탈로그</span><span>github.com/Reasonofmoon/bitgame-mods</span></div>
+</div>
+</section>
+
+<!-- ============ 08 INSTALL / CONTACT ============ -->
+<section class="page" id="p8" data-screen-label="08 Install">
+<div class="pg">
+<div class="hd"><span><b>06</b> &nbsp;·&nbsp; 설치 · 검증 · 한계</span><span>08 / 08</span></div>
+<div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px;">
+<div style="display:flex;flex-direction:column;gap:8px;">
+<span class="kick">Claude Code 2.1.287+ · 30초 설치</span>
+<pre class="code" style="margin:0;">claude plugin marketplace add \
+  Reasonofmoon/bitgame-mods
+claude plugin install game-hud@bitgame-mods
+claude plugin install game-trap-guard@bitgame-mods
+…  (원하는 Mod만)</pre>
+</div>
+<div style="display:flex;flex-direction:column;gap:8px;">
+<span class="kick">Gemini CLI 0.40+ · Antigravity</span>
+<pre class="code" style="margin:0;">git clone https://github.com/
+  Reasonofmoon/bitgame-mods.git
+cd bitgame-mods
+bash scripts/check-gemini.sh
+gemini extensions link ./gemini-extension</pre>
+</div>
+</div>
+<span style="font-size:11px;line-height:1.55;color:var(--color-neutral-700);">Gemini 익스텐션에는 레트로 테마 3종, 3대 가드, 스펠 체크, 추정 표시, 8비트 HUD, 퀘스트·미니맵, tmux 듀얼 화면, 효과음, 세이브 포인트, /game:* 명령이 들어 있습니다. Windows는 README의 PowerShell 블록을 쓰고, 터미널 글꼴을 Galmuri Mono 11로 바꾸면 화면 전체가 맞춰집니다.</span>
+<div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:24px;">
+<div style="display:flex;flex-direction:column;gap:8px;">
+<span class="kick">검증 (CHANGELOG 0.3.0)</span>
+<table class="spec">
+<tr><th>validate</th><td>claude plugin validate --strict ✓ ×22 + 마켓플레이스</td></tr>
+<tr><th>tests</th><td>claude plugin test 173/173 ✓</td></tr>
+<tr><th>환경</th><td>Windows 11 · Claude Code 2.1.296 (scripts/check.sh)</td></tr>
+<tr><th>실행 기록</th><td>21개 동시 녹화 세션 · 가드 실제 거부 로그</td></tr>
+</table>
+</div>
+<div style="display:flex;flex-direction:column;gap:8px;">
+<span class="kick">알려진 한계</span>
+<ul class="ticks">
+<li>권한 확인 창 자체는 Mod가 바꿀 수 없음</li>
+<li>가드는 문자열을 읽음 — 스크립트 안의 publish는 못 봄</li>
+<li>서버 부팅 대기 폴링은 루프로 보일 수 있음</li>
+<li>헤드리스(claude -p)에서는 그림 없이 가드만 동작</li>
+</ul>
+</div>
+</div>
+
+<div style="margin-top:auto;margin-left:-52px;margin-right:-52px;margin-bottom:-32px;background:#000;color:var(--color-neutral-100);padding:30px 52px 28px;display:flex;flex-direction:column;gap:16px;">
+<div style="display:grid;grid-template-columns:minmax(0,1fr) auto;gap:34px;align-items:end;">
+<div style="display:flex;flex-direction:column;gap:8px;">
+<span class="pixel" style="font-size:13px;color:#3cbcfc;">▶ PRESS START</span>
+<span style="font-family:var(--font-heading);font-weight:700;font-size:28px;line-height:1.15;">원하는 Mod 하나부터,<br>오늘 세션에 장착해 보세요</span>
+<span class="pixel" style="font-size:18px;color:#f8d830;margin-top:4px;">github.com/Reasonofmoon/bitgame-mods</span>
+<span style="font-size:13px;color:var(--color-accent-200);">오픈소스 · MIT · 버그 제보와 잘못된 거부 사례는 Issues로 · soundfury37@gmail.com</span>
+</div>
+<div style="display:flex;flex-direction:column;align-items:center;gap:8px;">
+<div class="blueprint" style="width:124px;height:124px;background:#fff;padding:8px;box-sizing:border-box;"><i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i><image-slot id="bg-qr" shape="rect" fit="contain" src="assets-bitgame/qr-github.svg" placeholder="QR"></image-slot></div>
+<span class="pixel" style="font-size:10px;color:#3cbcfc;text-align:center;">QR · GITHUB</span>
+</div>
+</div>
+<div style="display:flex;justify-content:space-between;gap:16px;border-top:1px solid #3c3cfc;padding-top:10px;font-size:10px;color:var(--color-accent-300);white-space:nowrap;"><span style="font-family:var(--font-heading);letter-spacing:0.1em;text-transform:uppercase;">bitgame-mods · 앱 &amp; 서비스 카탈로그 No.05</span><span>픽셀 글꼴: Galmuri (OFL)</span></div>
+</div>
+</div>
+</section>
+
+</doc-page>
+
+
+
+</x-dc>
+</body>
+</html>
