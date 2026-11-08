@@ -2,7 +2,7 @@ import { expect, mock, test } from 'claude-code/testing'
 import type { Engine } from 'claude-code/testing'
 import type { On } from 'claude-code'
 
-type World = { head?: string; links?: Record<string, string> }
+type World = { head?: string; links?: Record<string, string>; branches?: string[] }
 
 // On a Windows host the engine hands the fs hooks native paths (C:\proj\a.ts): read them as /proj/a.ts.
 function posix(path: string): string {
@@ -31,8 +31,14 @@ function world(on: On, opts: World = {}) {
     return { value: undefined }
   })
   on('ui.log', () => ({ value: undefined }))
-  // A file system where /proj/new/… does not exist yet and links point where told.
-  on('fs.exists', (_, e) => ({ value: !posix(e.path).startsWith('/proj/new') }))
+  // A file system where /proj/new/… does not exist yet, the local branches are those told
+  // (when told), and links point where told.
+  on('fs.exists', (_, e) => {
+    const path = posix(e.path)
+    const ref = /^\/proj\/\.git\/refs\/heads\/(.+)$/.exec(path)
+    if (ref !== null && opts.branches !== undefined) return { value: opts.branches.includes(ref[1] ?? '') }
+    return { value: !path.startsWith('/proj/new') }
+  })
   // `resolve: true` answers the path with every link along it followed.
   const resolve = (path: string) => {
     for (const [from, to] of Object.entries(opts.links ?? {})) {
@@ -100,6 +106,26 @@ test('HEAD on a feature branch may be force-pushed', async ($, on) => {
   await start($)
   expect(await bash($, 'git push origin HEAD --force-with-lease')).toBeUndefined()
   expect(ran).toEqual(['git push origin HEAD --force-with-lease'])
+})
+
+test('a branch switched to earlier in the same command is the one force-pushed', async ($, on) => {
+  const { ran } = world(on, { head: 'ref: refs/heads/main\n', branches: ['main', 'feat/x'] })
+  await start($)
+  expect(await bash($, 'git checkout -q feat/x && git rebase main && git push --force-with-lease')).toBeUndefined()
+  expect(await bash($, 'git switch feat/y && git push -f')).toBeUndefined()
+  expect(await bash($, 'git checkout -b topic && git push -f')).toBeUndefined()
+  expect(await bash($, 'git switch -c topic2; git push origin HEAD --force')).toBeUndefined()
+  expect(ran).toHaveLength(4)
+  // Not a local branch: checkout restored a file, and the push is still on main.
+  expect(await bash($, 'git checkout README.md && git push -f')).toContain('protected branch main')
+  expect(await bash($, 'git checkout feat/x && git checkout main && git push -f')).toContain('protected branch main')
+  expect(await bash($, 'git switch - && git push -f')).toContain('could not be read')
+  expect(await bash($, 'git switch feat/y && git push --force origin main')).toContain('protected branch main')
+  // A switch in another repository (-C) says nothing about this one.
+  expect(await bash($, 'git -C ../other switch feat/x && git push -f')).toContain('protected branch main')
+  // After a switch, a cd may enter another repository: its branch is not known.
+  expect(await bash($, 'git switch feat/x && cd ../other && git push -f')).toContain('could not be read')
+  expect(ran).toHaveLength(4)
 })
 
 test('history-destroying git commands are refused', async ($, on) => {

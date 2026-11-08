@@ -4,7 +4,7 @@ Stops tool calls that cannot be undone from inside the session, **before they ru
 
 | Group | Refused |
 |---|---|
-| git | force-push or delete a protected branch (`main`, `master`, `prod`, `production`, `release`, `trunk`; a bare `git push -f` reads the current branch from `.git/HEAD`) · `reset --hard` · `clean -f` · `checkout .` · `restore .` · `stash drop`/`clear` · `branch -D` |
+| git | force-push or delete a protected branch (`main`, `master`, `prod`, `production`, `release`, `trunk`; a bare `git push -f` reads the current branch from `.git/HEAD`, or the branch an earlier `git switch` / `git checkout <local branch>` in the same command moved to) · `reset --hard` · `clean -f` · `checkout .` · `restore .` · `stash drop`/`clear` · `branch -D` |
 | rm | `-r` on `/`, `~`, `$HOME`, `.`, `./*`, `..`, the project root, or anything outside the project and temp folders |
 | ship | `npm`/`pnpm`/`yarn publish` (not `--dry-run`), `cargo publish`, `twine upload`, `gh release create`, `docker push`, `gem push` |
 | infra | `terraform destroy`, `kubectl delete`, `helm uninstall` |
