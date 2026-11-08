@@ -270,7 +270,7 @@ export function inspectTrapGuard(toolName, toolInput) {
 const PROTECTED_BRANCH = /^(?:main|master|prod|production|release|trunk)$/
 
 const WHOLE_BARRIERS = [
-  { pattern: /(?:^|[\s;&|(])(?:npm|pnpm|yarn)\s+publish\b/, why: 'publishes a package (npm publish), which cannot be taken back', unless: /--dry-run\b/ },
+  { pattern: /(?:^|[\s;&|(`])(?:npm|pnpm|yarn)\s+publish\b/, why: 'publishes a package (npm publish), which cannot be taken back', unless: /--dry-run\b/ },
   { pattern: /\bcargo\s+publish\b/, why: 'publishes a crate (cargo publish), which cannot be taken back', unless: /--dry-run\b/ },
   { pattern: /\btwine\s+upload\b/, why: 'uploads a release to PyPI (twine upload), which cannot be taken back' },
   { pattern: /\bgh\s+release\s+create\b/, why: 'creates a public release (gh release create)' },
@@ -289,10 +289,103 @@ export function getGitBranch(cwd = process.cwd()) {
   }
 }
 
+/** Whether the name is a local branch of the repository at cwd (loose or packed). */
+function isLocalBranch(name, cwd) {
+  if (!name || name.includes('..')) return false
+  try {
+    execFileSync('git', ['show-ref', '--verify', '--quiet', `refs/heads/${name}`], { cwd, stdio: 'ignore' })
+    return true
+  } catch {
+    return false
+  }
+}
+
+/**
+ * The branch a `git switch` or `git checkout` segment moves to: its name, null when it cannot
+ * be told, undefined when the segment moves nowhere this check can trust. `git checkout <name>`
+ * counts only when the name is a local branch, since it may restore a file instead; and git's
+ * own options (`-C dir`) may point at another repository, so a segment with them counts not.
+ * Ported from plugins/game-barrier (switchOf).
+ */
+function switchOf(args, cwd) {
+  const [sub, ...rest] = args
+  if ((sub !== 'switch' && sub !== 'checkout') || rest.includes('--')) return undefined
+  const flags = rest.filter(w => w.startsWith('-'))
+  const plain = rest.filter(w => !w.startsWith('-'))
+  if (rest.includes('-') || flags.includes('--detach')) return null
+  const isCreate = flags.some(f => ['-c', '-C', '-b', '-B', '--create', '--force-create'].includes(f))
+  if (isCreate || sub === 'switch') return plain[0]
+  return plain.length === 1 && isLocalBranch(plain[0], cwd) ? plain[0] : undefined
+}
+
+/** Commands that run the text they read: a heredoc fed to one of them is commands after all. */
+const SHELLS = new Set(['sh', 'bash', 'zsh', 'dash', 'ksh', 'fish', 'ssh', 'eval', 'source', 'xargs'])
+
+function shellWords(text) {
+  return (text.match(/'[^']*'|"[^"]*"|\S+/g) ?? []).map(t => t.replace(/^(['"])(.*)\1$/, '$2'))
+}
+
+/**
+ * The command with the body of each heredoc taken out (`<<EOF`, `<<'EOF'`, `<<"EOF"`, `<<-EOF`),
+ * the lines that open and follow it kept. A heredoc on a line that also names a shell keeps
+ * its body, since the shell runs it; so does each body line of an unquoted tag that holds
+ * `$(` or a backtick, which the shell runs while it expands the body. A body never closed
+ * runs to the end, as in the shell. Ported from plugins/game-barrier (withoutHeredocBodies).
+ */
+export function withoutHeredocBodies(command) {
+  const out = []
+  let pending = []
+  for (const line of command.split('\n')) {
+    const open = pending[0]
+    if (open !== undefined) {
+      if ((open.isIndented ? line.replace(/^\t+/, '') : line) === open.tag) pending = pending.slice(1)
+      else if (!open.isQuoted && /\$\(|`/.test(line)) out.push(line)
+      continue
+    }
+    out.push(line)
+    const opened = heredocsOf(line)
+    if (opened.length > 0 && !shellWords(line).some(word => SHELLS.has(word.replace(/^.*\//, '')))) pending = opened
+  }
+  return out.join('\n')
+}
+
+/** The heredocs a line opens, in order: each `<<` outside quotes that is not a here-string (`<<<`). */
+function heredocsOf(line) {
+  const found = []
+  let quote = null
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i]
+    if (ch === '\\' && quote !== "'") {
+      i++
+      continue
+    }
+    if (quote !== null) {
+      if (ch === quote) quote = null
+      continue
+    }
+    if (ch === "'" || ch === '"') {
+      quote = ch
+      continue
+    }
+    if (ch !== '<' || line[i + 1] !== '<' || line[i + 2] === '<' || line[i - 1] === '<') continue
+    const m = /^<<(-?)\s*(?:'([^']*)'|"([^"]*)"|(\\?)([A-Za-z0-9_.-]+))/.exec(line.slice(i))
+    if (m === null) continue
+    // 'EOF', "EOF" and \EOF expand nothing in the body; a bare EOF does.
+    const isQuoted = m[2] !== undefined || m[3] !== undefined || m[4] === '\\'
+    found.push({ tag: m[2] ?? m[3] ?? m[5] ?? '', isIndented: m[1] === '-', isQuoted })
+    i += m[0].length - 1
+  }
+  return found
+}
+
 export function inspectBarrier(toolName, toolInput, cwd = process.cwd()) {
   const norm = normalizeTool(toolName, toolInput)
   if (norm.kind !== 'Bash') return undefined
-  const command = norm.command
+  // A heredoc's body is text handed to a command (a PR body, a commit message), not commands.
+  const command = withoutHeredocBodies(norm.command)
+  // A branch switched to earlier in the command is the current one for the segments after it:
+  // undefined while none was, null when it cannot be told which (`git switch -`, a detached HEAD).
+  let switched
 
   for (const rule of WHOLE_BARRIERS) {
     if (rule.pattern.test(command) && !(rule.unless?.test(command) ?? false)) {
@@ -306,7 +399,10 @@ export function inspectBarrier(toolName, toolInput, cwd = process.cwd()) {
       words.shift()
     }
     const [head, ...rest] = words
+    // A cd after a switch may enter another repository, whose branch is not known.
+    if ((head === 'cd' || head === 'pushd' || head === 'popd') && switched !== undefined) switched = null
     if (head === 'git') {
+      const moved = switchOf(rest, cwd)
       let i = 0
       while (i < rest.length && rest[i].startsWith('-')) i += rest[i] === '-C' || rest[i] === '-c' ? 2 : 1
       const sub = rest[i]
@@ -330,14 +426,22 @@ export function inspectBarrier(toolName, toolInput, cwd = process.cwd()) {
         const isForce = flags.some(f => f === '--force' || f.startsWith('--force-with-lease') || /^-[a-zA-Z]*f/.test(f)) || plain.some(w => w.startsWith('+'))
         const isDelete = flags.includes('--delete') || flags.includes('-d')
         if (isForce || isDelete) {
-          const branch = getGitBranch(cwd) || 'main'
           const targets = plain.slice(1).map(r => r.replace(/^\+/, '').split(':').pop().replace(/^refs\/heads\//, ''))
-          const hit = targets.find(t => PROTECTED_BRANCH.test(t)) || (targets.length === 0 && PROTECTED_BRANCH.test(branch) ? branch : null)
-          if (hit) {
-            return { guard: 'barrier', badge: 'BARRIER!', why: `${isDelete ? 'deletes' : 'force-pushes over'} the protected branch ${hit} (git push)` }
+          const named = targets.find(t => PROTECTED_BRANCH.test(t))
+          if (named) {
+            return { guard: 'barrier', badge: 'BARRIER!', why: `${isDelete ? 'deletes' : 'force-pushes over'} the protected branch ${named} (git push)` }
+          }
+          if (targets.length === 0 && switched === null) {
+            return { guard: 'barrier', badge: 'BARRIER!', why: 'force-pushes without naming a branch, and the current branch could not be read' }
+          }
+          // An unreadable branch counts as main: refusing is the safe side.
+          const branch = switched ?? (getGitBranch(cwd) || 'main')
+          if (targets.length === 0 && PROTECTED_BRANCH.test(branch)) {
+            return { guard: 'barrier', badge: 'BARRIER!', why: `${isDelete ? 'deletes' : 'force-pushes over'} the protected branch ${branch} (git push)` }
           }
         }
       }
+      if (moved !== undefined) switched = moved
     }
     if (head === 'rm' && rest.some(w => /^-[a-zA-Z]*[rR]/.test(w) || w === '--recursive')) {
       for (const raw of rest.filter(w => !w.startsWith('-'))) {
