@@ -1,7 +1,7 @@
 {
   "name": "game-dev-floor",
   "displayName": "GAME MODE · Dev Floor",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "/devfloor: an animated pixel-art dev office in a pane. The main loop types at the LEAD desk, each subagent walks in to a desk; screens show the tool kind, a failed call flashes red, a guard's refusal sets off the beacon, the window's sky is context left, coffee cups are cost and the server rack's lights are plan usage left",
   "author": {
     "name": "Reason of Moon",

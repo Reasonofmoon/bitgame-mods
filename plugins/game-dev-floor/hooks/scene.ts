@@ -154,7 +154,7 @@ export function pixels(f: Floor, now: number, cols: number): Canvas {
   function worker(cv: Canvas, w: Worker, slot: number, t: number, b: number, isAsking: boolean): void {
     const x0 = deskX(slot)
     const look = lookOf(w.name)
-    const into = (t - w.startedAt) / WALK_MS
+    const into = (t - (w.seatedAt ?? w.startedAt)) / WALK_MS
     const hold = w.status === 'clear' ? CLEAR_HOLD_MS : FAIL_HOLD_MS
     const out = w.endedAt === null ? 0 : (t - w.endedAt - hold) / WALK_MS
     const what: Screen = w.status === 'clear' ? 'clear' : w.status === 'fail' ? 'fail' : workerScreen(w, t)
@@ -183,14 +183,19 @@ function workerScreen(w: Worker, now: number): Screen {
   return w.kind ?? 'other'
 }
 
-/** Seats workers waiting with no desk at the desks others left; the rest keep theirs. */
+/** Seats working workers waiting with no desk at the desks others left; the rest keep theirs. */
 export function reseat(workers: readonly Worker[], now: number): Worker[] {
   const here = workers.filter(w => !isGone(w, now))
   return here.reduce<Worker[]>((seated, w) => {
-    if (w.desk !== null) return seated
+    if (w.desk !== null || w.status !== 'active') return seated
     const desk = freeDesk(seated, now)
-    return desk === null ? seated : seated.map(s => (s.id === w.id ? { ...s, desk } : s))
+    return desk === null ? seated : seated.map(s => (s.id === w.id ? { ...s, desk, seatedAt: now } : s))
   }, here)
+}
+
+/** True when a working worker waits with no desk and a desk is free for it. */
+export function canSeat(workers: readonly Worker[], now: number): boolean {
+  return workers.some(w => w.desk === null && w.status === 'active' && !isGone(w, now)) && freeDesk(workers, now) !== null
 }
 
 /** The first desk past the LEAD that no worker on the floor holds, or null when all are held. */

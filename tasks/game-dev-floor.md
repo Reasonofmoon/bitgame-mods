@@ -78,3 +78,10 @@ API 출처는 plugin-authoring 스킬의 `types/claude-code.d.ts`입니다.
 - kitty/Ghostty용 고해상도 `Image` 모드
 - Codex·Gemini 같은 다른 CLI 세션을 옆방으로 보여 주기
 - 사운드 (game-earcons가 이미 담당)
+
+## 0.1.1 · 대기 동료 착석 (2026-11-08)
+시뮬레이터에서 발견: 책상 5개가 다 찬 뒤 들어온 동료(desk null, 랙 `+n`)는 앞 동료가 떠나 책상이 비어도 끝까지 앉지 못함. `reseat()`가 `agent.spawn`에서만 불렸기 때문.
+1. 테스트 먼저: 100열 패널, 동료 6명 → `+1`; 1번이 CLEAR 후 퇴장하면 6번 이름이 이름 줄에 나오고 `+1`이 사라져야 함 (RED 확인).
+2. `Worker.seatedAt` 추가: 걷기 입장은 앉은 시각부터. `reseat()`는 일하는(active) 동료만 앉힘.
+3. 타이머 `tick()`에서 대기 동료와 빈 책상이 함께 있을 때만 `reseat()`로 상태 갱신.
+4. 0.1.1로 올림 (plugin.json, marketplace.json, CHANGELOG), `scripts/check.sh`, `tsc`.
