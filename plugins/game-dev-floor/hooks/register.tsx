@@ -112,11 +112,9 @@ export const register: Register = (on, options) => {
     if (agentId === undefined) return started
     const now = await $.clock.now()
     const name = e.name ?? e.subagentType
-    // Its first calls may have come first and seated it already: then it only gets its name.
     await update($, floor, f => {
-      const known = f.workers.some(w => w.id === agentId)
-      const workers = known ? f.workers.map(w => (w.id === agentId ? { ...w, name, toolUseId: e.tool_use_id } : w)) : [...f.workers, newWorker(agentId, name, e.tool_use_id, now)]
-      return { ...f, workers: reseat(workers, now).slice(-MAX_WORKERS) }
+      if (f.workers.some(w => w.id === agentId)) return f
+      return { ...f, workers: reseat([...f.workers, newWorker(agentId, name, e.tool_use_id, now)], now).slice(-MAX_WORKERS) }
     })
     startTimer($)
     return started
@@ -126,7 +124,7 @@ export const register: Register = (on, options) => {
     const tool = String(e.tool)
     const actor = e.agentId ?? 'lead'
     const started = await $.clock.now()
-    await update($, floor, f => withActor(withWorker(f, actor, started), actor, { kind: kindOf(tool), tool }, started))
+    await update($, floor, f => withActor(f, actor, { kind: kindOf(tool), tool }, started))
     const ran = await next(e)
     const failed = ran.deny !== undefined || ran.isError === true
     const now = await $.clock.now()
@@ -295,14 +293,13 @@ function newWorker(id: string, name: string, toolUseId: string, now: number): Wo
   return { id, toolUseId, name, status: 'active', desk: null, kind: null, tool: null, errorAt: null, startedAt: now, endedAt: null, lastAt: now }
 }
 
-/** A call from a subagent the floor has not seen start yet: seat it under its agent id for now. */
-function withWorker(f: Floor, actor: string, now: number): Floor {
-  if (actor === 'lead' || f.workers.some(w => w.id === actor)) return f
-  return { ...f, workers: reseat([...f.workers, newWorker(actor, 'agent', '', now)], now).slice(-MAX_WORKERS) }
-}
-
 type ActorPatch = Partial<Pick<Worker, 'kind' | 'tool' | 'errorAt'>>
 
+/**
+ * Marks what the LEAD or a worker does. A call from an agent the floor never saw start is
+ * left out: the engine runs loops of its own (tool search, wakeups) that no Agent call
+ * started, and they are nobody at a desk.
+ */
 function withActor(f: Floor, actor: string, patch: ActorPatch, now: number): Floor {
   if (actor === 'lead') return { ...f, lead: { ...f.lead, ...patch } }
   return { ...f, workers: f.workers.map(w => (w.id === actor ? { ...w, ...patch, lastAt: now } : w)) }

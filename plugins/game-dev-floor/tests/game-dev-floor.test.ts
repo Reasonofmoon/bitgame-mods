@@ -261,16 +261,16 @@ test('one denied blit does not stop the floor; three in a row stop it until it i
   await ui.unmount()
 })
 
-test('a subagent heard from before its start is seated, then named when its start arrives', async ($, on) => {
+test('calls from an agent the floor never saw start seat nobody', async ($, on) => {
   world(on)
   await start($)
-  await $.tool.call({ tool: 'Read', file_path: '/proj/a.ts', agentId: 'agent-1', tool_use_id: 'toolu_r' } as never)
-  expect(labelRow((await floorView($)).cells ?? '', 80)).toContain('agent')
+  // Engine loops no Agent call started (tool search, wakeups) carry an agentId too.
+  await $.tool.call({ tool: 'ToolSearch', query: 'x', agentId: 'agent-loop', tool_use_id: 'toolu_s' } as never)
+  const view = await floorView($)
+  expect(labelRow(view.cells ?? '', 80).split(/\s+/).filter(Boolean)).toEqual(['LEAD', 'RACK'])
+  expect(view.texts.join(' ')).toContain('동료 0명')
   await $.agent.spawn(spawn('toolu_a', 'Explore'))
-  const names = labelRow((await floorView($)).cells ?? '', 80)
-  expect(names).toContain('Explore')
-  expect(names).not.toContain('agent ')
-  expect((await floorView($)).texts.join(' ')).toContain('동료 1명')
+  expect(labelRow((await floorView($)).cells ?? '', 80)).toContain('Explore')
 })
 
 test('a refusal counts once however often it is seen', async ($, on) => {
