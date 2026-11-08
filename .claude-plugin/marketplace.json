@@ -6,7 +6,7 @@
   },
   "metadata": {
     "description": "GAME MODE for Claude Code: 23 mods for an 8-bit look where every piece does a job (HUD, battle log, three guards, save point and title screen, sound cues, stance, casting, clear time, party, quest, minimap, hint, map, spell check, answer memory, hedge mark, item get, equip, achievements, choice, dev floor)",
-    "version": "0.4.1"
+    "version": "0.4.2"
   },
   "plugins": [
     {
@@ -54,7 +54,7 @@
       "name": "game-barrier",
       "source": "./plugins/game-barrier",
       "description": "Stops irreversible calls: force-push to main, reset --hard, rm -r outside the project, publishing, DROP TABLE, and file edits outside the project",
-      "version": "0.2.2",
+      "version": "0.2.3",
       "category": "development",
       "keywords": [
         "mod",

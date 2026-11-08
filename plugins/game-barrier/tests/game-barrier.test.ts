@@ -128,6 +128,43 @@ test('a branch switched to earlier in the same command is the one force-pushed',
   expect(ran).toHaveLength(4)
 })
 
+test('a heredoc body is text, not commands: what it quotes is not refused', async ($, on) => {
+  const { ran } = world(on, { head: 'ref: refs/heads/feature/x\n' })
+  await start($)
+  const bodies = [
+    // The commit message that was refused for real: its second line reads as a push to main.
+    "git commit -F - <<'EOF'\nfix: `git checkout feat/x && git rebase main &&\ngit push --force-with-lease` from main was refused\nEOF",
+    'git commit -F - <<EOF\nfix: say why\ngit reset --hard is refused\nEOF',
+    'cat > notes.md <<"EOF"\nnpm publish\nrm -rf /\nkubectl delete ns prod\nEOF',
+    'cat <<-EOF > plan.md\n\tgit push -f origin master\n\tEOF',
+    "cat <<'A' <<'B'\ngit push --force origin main\nA\ndocker push img\nB",
+    // A quoted tag expands nothing: $( ) in the body is text.
+    "cat <<'EOF'\n$(npm publish)\nEOF",
+  ]
+  for (const command of bodies) expect(await bash($, command)).toBeUndefined()
+  expect(ran).toEqual(bodies)
+})
+
+test('around a heredoc, and where a shell runs it, commands are still refused', async ($, on) => {
+  const { ran } = world(on, { head: 'ref: refs/heads/feature/x\n' })
+  await start($)
+  // After the heredoc ends, and before it starts.
+  expect(await bash($, "git commit -F - <<'EOF'\nmsg\nEOF\ngit push --force origin main")).toContain('protected branch main')
+  expect(await bash($, 'git push --force origin main && cat <<EOF\nhi\nEOF')).toContain('protected branch main')
+  expect(await bash($, 'npm publish; cat <<EOF\nhi\nEOF')).toContain('npm publish')
+  // A shell reading the heredoc runs its body.
+  expect(await bash($, "bash <<'EOF'\ngit push --force origin main\nEOF")).toContain('protected branch main')
+  expect(await bash($, 'cat <<EOF | sh\nnpm publish\nEOF')).toContain('npm publish')
+  expect(await bash($, "ssh host <<'EOF'\ngit reset --hard\nEOF")).toContain('git reset --hard')
+  // An unquoted tag runs $( ) and backticks in the body.
+  expect(await bash($, 'cat <<EOF\n$(npm publish)\nEOF')).toContain('npm publish')
+  expect(await bash($, 'cat <<EOF\nnotes `npm publish`\nEOF')).toContain('npm publish')
+  // A quoted << and a here-string open no heredoc.
+  expect(await bash($, 'echo "<<EOF"\ngit push --force origin main\nEOF')).toContain('protected branch main')
+  expect(await bash($, 'cat <<< "EOF"\ngit push --force origin main')).toContain('protected branch main')
+  expect(ran).toEqual([])
+})
+
 test('history-destroying git commands are refused', async ($, on) => {
   const { ran } = world(on)
   await start($)

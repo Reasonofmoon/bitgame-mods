@@ -40,7 +40,7 @@ const PROTECTED = /^(?:main|master|prod|production|release|trunk)$/
 const PASS_MS = 10 * 60 * 1000
 
 const WHOLE: { pattern: RegExp; why: string; unless?: RegExp }[] = [
-  { pattern: /(?:^|[\s;&|(])(?:npm|pnpm|yarn)\s+publish\b/, why: 'publishes a package (npm publish), which cannot be taken back', unless: /--dry-run\b/ },
+  { pattern: /(?:^|[\s;&|(`])(?:npm|pnpm|yarn)\s+publish\b/, why: 'publishes a package (npm publish), which cannot be taken back', unless: /--dry-run\b/ },
   { pattern: /\bcargo\s+publish\b/, why: 'publishes a crate (cargo publish), which cannot be taken back', unless: /--dry-run\b/ },
   { pattern: /\btwine\s+upload\b/, why: 'uploads a release to PyPI (twine upload), which cannot be taken back' },
   { pattern: /\bgh\s+release\s+create\b/, why: 'creates a public release (gh release create)' },
@@ -224,7 +224,9 @@ async function inspect($: EngineInterface, tool: string, input: Record<string, u
   return undefined
 }
 
-export async function inspectCommand(command: string, ctx: Context, projectRoot: string): Promise<Finding | undefined> {
+export async function inspectCommand(full: string, ctx: Context, projectRoot: string): Promise<Finding | undefined> {
+  // A heredoc's body is text handed to a command (a PR body, a commit message), not commands.
+  const command = withoutHeredocBodies(full)
   for (const rule of WHOLE) {
     if (rule.pattern.test(command) && !(rule.unless?.test(command) ?? false)) return { why: rule.why }
   }
@@ -434,6 +436,64 @@ export function normalize(path: string, win = false): string {
   }
   if (prefix !== '') return prefix + out.join('/')
   return (absolute ? '/' : '') + out.join('/') || (absolute ? '/' : '.')
+}
+
+/** Commands that run the text they read: a heredoc fed to one of them is commands after all. */
+const SHELLS = new Set(['sh', 'bash', 'zsh', 'dash', 'ksh', 'fish', 'ssh', 'eval', 'source', 'xargs'])
+
+/**
+ * The command with the body of each heredoc taken out (`<<EOF`, `<<'EOF'`, `<<"EOF"`, `<<-EOF`),
+ * the lines that open and follow it kept. A heredoc on a line that also names a shell keeps
+ * its body, since the shell runs it; so does each body line of an unquoted tag that holds
+ * `$(` or a backtick, which the shell runs while it expands the body. A body never closed
+ * runs to the end, as in the shell.
+ */
+export function withoutHeredocBodies(command: string): string {
+  const out: string[] = []
+  let pending: Heredoc[] = []
+  for (const line of command.split('\n')) {
+    const open = pending[0]
+    if (open !== undefined) {
+      if ((open.isIndented ? line.replace(/^\t+/, '') : line) === open.tag) pending = pending.slice(1)
+      else if (!open.isQuoted && /\$\(|`/.test(line)) out.push(line)
+      continue
+    }
+    out.push(line)
+    const opened = heredocsOf(line)
+    if (opened.length > 0 && !tokens(line).some(word => SHELLS.has(word.replace(/^.*\//, '')))) pending = opened
+  }
+  return out.join('\n')
+}
+
+type Heredoc = { tag: string; isIndented: boolean; isQuoted: boolean }
+
+/** The heredocs a line opens, in order: each `<<` outside quotes that is not a here-string (`<<<`). */
+function heredocsOf(line: string): Heredoc[] {
+  const found: Heredoc[] = []
+  let quote: string | null = null
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i]
+    if (ch === '\\' && quote !== "'") {
+      i++
+      continue
+    }
+    if (quote !== null) {
+      if (ch === quote) quote = null
+      continue
+    }
+    if (ch === "'" || ch === '"') {
+      quote = ch
+      continue
+    }
+    if (ch !== '<' || line[i + 1] !== '<' || line[i + 2] === '<' || line[i - 1] === '<') continue
+    const m = /^<<(-?)\s*(?:'([^']*)'|"([^"]*)"|(\\?)([A-Za-z0-9_.-]+))/.exec(line.slice(i))
+    if (m === null) continue
+    // 'EOF', "EOF" and \EOF expand nothing in the body; a bare EOF does.
+    const isQuoted = m[2] !== undefined || m[3] !== undefined || m[4] === '\\'
+    found.push({ tag: m[2] ?? m[3] ?? m[5] ?? '', isIndented: m[1] === '-', isQuoted })
+    i += m[0].length - 1
+  }
+  return found
 }
 
 function tokens(segment: string): string[] {
