@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.4.0 — 2026-11-08
+
+One new mod, the 23rd: the session drawn as a picture. The marketplace is 0.4.0; the other plugins keep their versions.
+
+### P5 · the floor (new)
+- **game-dev-floor** 0.1.0: `/devfloor` opens a pane with an animated pixel-art dev office, drawn as one `Raster` of half-block cells and repainted in place with `$.ui.blit` only while something moves. The main loop types at the LEAD desk; each subagent walks in to a free desk and leaves with a green tick (`CLEAR`) or slumps over a red screen (`FAIL`). Screens show the tool kind, a failed call flashes red, a raised hand and `!` wait for approval, the ceiling beacon marks a guard refusal (counted once per call, from the stored result too). The window's sky is context left, coffee cups the session's cost, the server rack's lights plan usage left; the room goes dark after a quiet minute. A caption says the same figures in words; surfaces without `Raster` get the text alone.
+
 ## 0.3.0 — 2026-10-10
 
 One new mod, the 22nd: picking up where the last answer left off. The marketplace is 0.3.0; plugins not listed below stay at 0.2.0.

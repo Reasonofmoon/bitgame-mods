@@ -7,7 +7,7 @@
   &nbsp;·&nbsp;
   <a href="#see-it-fire"><strong>See it fire</strong></a>
   &nbsp;·&nbsp;
-  <a href="#the-22-mods"><strong>The 22 mods</strong></a>
+  <a href="#the-23-mods"><strong>The 23 mods</strong></a>
   &nbsp;·&nbsp;
   <a href="#settings"><strong>Settings</strong></a>
   &nbsp;·&nbsp;
@@ -35,7 +35,7 @@
 
 ---
 
-## Kernel (one rule · 22 mods)
+## Kernel (one rule · 23 mods)
 
 | You see | Mod | What it does |
 |---------|-----|--------------|
@@ -138,9 +138,9 @@ gemini extensions link ./gemini-extension
 
 ---
 
-<a id="the-22-mods"></a>
+<a id="the-23-mods"></a>
 
-## The 22 mods
+## The 23 mods
 
 | # | Mod | Hooks | Commands |
 |---|-----|-------|----------|
@@ -166,6 +166,7 @@ gemini extensions link ./gemini-extension
 | 20 | [**game-equip**](plugins/game-equip) | `InfoNotice` · `$.ui.log` · `turn.start` · `classic.PostModelSwitch` | — |
 | 21 | [**game-achievement**](plugins/game-achievement) | `tool.call` · `session.append` · `session.compact` · `CommandOutput` | `/achievements` |
 | 22 | [**game-choice**](plugins/game-choice) | `turn.complete` · `prompt.suggest` · `prompt.edit` · `prompt.submit` · `AbovePrompt` · `$.http.fetch` (Jev) · `$.model.fork` | `/choice` |
+| 23 | [**game-dev-floor**](plugins/game-dev-floor) | `Pane` (`Raster` + `$.ui.blit`) · `agent.spawn` · `tool.call` · `tool.check` · `session.append` · `session.measure` · `$.clock.every` | `/devfloor` |
 
 What each guard refuses, in one line each (details in each README):
 
@@ -257,7 +258,7 @@ Zero runtime dependencies. The hooks modules run inside Claude Code's own mod en
 
 ## 한국어 요약
 
-**GAME MODE**는 Claude Code와 Gemini CLI를 8비트 게임 화면처럼 꾸미되, **모든 요소가 실제 일을 하도록** 만든 Mod 22종(및 Gemini CLI 통합 익스텐션)입니다. 원하는 것만 골라 설치해도 됩니다.
+**GAME MODE**는 Claude Code와 Gemini CLI를 8비트 게임 화면처럼 꾸미되, **모든 요소가 실제 일을 하도록** 만든 Mod 23종(및 Gemini CLI 통합 익스텐션)입니다. 원하는 것만 골라 설치해도 됩니다.
 
 - **안전과 비용 (P1)**: HUD(HP=남은 컨텍스트, MP=요금제 한도, G=비용 ₩), 전투 로그(TURN·COMBO·BREAK·+/− 줄 수·가드별 판정), 트랩 가드(비밀키 노출 차단), 결계(되돌릴 수 없는 명령 차단), 루프 차단, 세이브 포인트(세이브 화면·PASSWORD·타이틀 화면·`/load`), 효과음(macOS·Windows·Linux)
 - **흐름 파악 (P2)**: STANCE(권한 모드 배지), CASTING(지금 하는 일과 이번 턴 비용), CLEAR(평소 대비 턴 시간), PARTY·QUEST·MINIMAP 패널, 힌트 줄, MAP(브랜치와 플레이 시간)
