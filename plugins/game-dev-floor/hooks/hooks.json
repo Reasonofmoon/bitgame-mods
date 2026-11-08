@@ -1,0 +1,6 @@
+{
+  "description": "GAME MODE · Dev Floor hooks module",
+  "modules": [
+    "./register.tsx"
+  ]
+}

@@ -1,0 +1,58 @@
+{
+  "name": "game-dev-floor",
+  "displayName": "GAME MODE · Dev Floor",
+  "version": "0.1.0",
+  "description": "/devfloor: an animated pixel-art dev office in a pane. The main loop types at the LEAD desk, each subagent walks in to a desk; screens show the tool kind, a failed call flashes red, a guard's refusal sets off the beacon, the window's sky is context left, coffee cups are cost and the server rack's lights are plan usage left",
+  "author": {
+    "name": "Reason of Moon",
+    "url": "https://github.com/Reasonofmoon"
+  },
+  "homepage": "https://github.com/Reasonofmoon/bitgame-mods/tree/main/plugins/game-dev-floor",
+  "repository": "https://github.com/Reasonofmoon/bitgame-mods",
+  "license": "MIT",
+  "keywords": [
+    "mod",
+    "game-mode",
+    "pixel-art",
+    "subagents",
+    "pane"
+  ],
+  "types": "./types/index.d.ts",
+  "userConfig": {
+    "intensity": {
+      "type": "string",
+      "title": "Intensity",
+      "description": "off draws nothing; casual draws the floor; hardcore adds each worker's run time to the caption",
+      "default": "casual",
+      "options": [
+        "off",
+        "casual",
+        "hardcore"
+      ]
+    },
+    "palette": {
+      "type": "string",
+      "title": "Palette",
+      "description": "The colors of the name row and the caption; nes, gameboy and amber are made for dark terminals, theme follows your Claude Code theme",
+      "default": "nes",
+      "options": [
+        "nes",
+        "gameboy",
+        "amber",
+        "theme"
+      ]
+    },
+    "autoOpen": {
+      "type": "boolean",
+      "title": "Open on the first prompt",
+      "description": "Open the pane by itself when the session's first turn starts (on terminals 144 columns wide or more)",
+      "default": true
+    },
+    "fps": {
+      "type": "number",
+      "title": "Frames per second",
+      "description": "How often the floor repaints while something moves, 4 to 30; a still floor is not repainted",
+      "default": 12
+    }
+  }
+}
