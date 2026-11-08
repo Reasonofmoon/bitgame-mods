@@ -10,6 +10,8 @@ Stops tool calls that cannot be undone from inside the session, **before they ru
 | infra | `terraform destroy`, `kubectl delete`, `helm uninstall` |
 | data | `DROP TABLE/DATABASE/SCHEMA`, `TRUNCATE TABLE` through a database client (`psql`, `mysql`, `sqlite3`, …); `grep "DROP TABLE"` is fine |
 | disk | `mkfs`, `dd of=/dev/…`, a fork bomb |
+
+The body of a heredoc (`<<EOF`, `<<'EOF'`, `<<"EOF"`, `<<-EOF`) is text handed to a command, such as a commit message or a PR body, so what it quotes is not refused. It is still checked when a shell reads it (`bash <<EOF`, `| sh`, `ssh host <<EOF`), and so is each line of an unquoted heredoc that holds `$(` or a backtick, which the shell runs.
 | files | Write / Edit / NotebookEdit outside the project, `~/.claude` and temp folders, with symbolic links resolved; when the working folder changes (`cd`, a worktree), the project is read again and the old one counts as outside |
 
 Allowed as usual: `rm -rf node_modules dist`, `git push --force-with-lease origin feature/x`, `git reset --soft`, `git restore --staged .`, writes to `/tmp` and plan files under `~/.claude`.

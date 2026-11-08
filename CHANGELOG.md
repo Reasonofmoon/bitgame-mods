@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.4.2 — 2026-11-08
+
+### Fixed
+- **game-barrier** 0.2.3: the body of a heredoc (`<<EOF`, `<<'EOF'`, `<<"EOF"`, `<<-EOF`) is no longer read as commands. Before, a commit message or PR body passed with `-F -` / `--body-file -` was refused when it quoted a risky command. For example, a line that read as a force-push to `main` was refused.
+  - Still checked:
+    - the commands before and after a heredoc
+    - a heredoc a shell reads (`bash`, `sh`, `ssh`, `eval`, `source`, `xargs` on the opening line)
+    - lines of an unquoted heredoc that hold `$(` or a backtick, which the shell runs
+  - A quoted `<<` and a here-string (`<<<`) open no heredoc.
+  - The `npm publish` rule now also matches inside backticks.
+
 ## 0.4.1 — 2026-11-08
 
 ### Fixed
