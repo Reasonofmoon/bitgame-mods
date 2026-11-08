@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.4.1 — 2026-11-08
+
+### Fixed
+- **game-barrier** 0.2.2: a force-push that names no branch is judged against the branch an earlier `git switch` or `git checkout` in the same command moves to, not only the one checked out before the command runs. Before, `git checkout feat/x && git rebase main && git push --force-with-lease` run from `main` was refused as a force-push over `main`.
+  - `git checkout <name>` counts only when the name is a local branch (`refs/heads` or `packed-refs`), since it may restore a file instead.
+  - `git switch -`, `--detach` and `git -C <dir>` count as unknown or another repository, so the refusal stays.
+
 ## 0.4.0 — 2026-11-08
 
 One new mod, the 23rd: the session drawn as a picture. The marketplace is 0.4.0; the other plugins keep their versions.

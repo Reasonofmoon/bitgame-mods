@@ -32,6 +32,8 @@ type Context = {
   win: boolean
   isAllowed: (path: string) => boolean
   branch: () => Promise<string | null>
+  /** Whether the name is a local branch (a file under refs/heads, or a line of packed-refs). */
+  isBranch: (name: string) => Promise<boolean>
 }
 
 const PROTECTED = /^(?:main|master|prod|production|release|trunk)$/
@@ -103,6 +105,7 @@ export const register: Register = (on, options) => {
       win,
       isAllowed,
       branch: () => currentBranch($, projectRoot),
+      isBranch: name => isLocalBranch($, projectRoot, name),
     }
     const finding = await inspect($, String(e.tool), e as unknown as Record<string, unknown>, ctx, projectRoot)
     if (finding === undefined) return next(e)
@@ -226,13 +229,21 @@ export async function inspectCommand(command: string, ctx: Context, projectRoot:
     if (rule.pattern.test(command) && !(rule.unless?.test(command) ?? false)) return { why: rule.why }
   }
 
+  // A branch switched to earlier in the command is the current one for the segments after it:
+  // undefined while none was, null when it cannot be told which (`git switch -`, a detached HEAD).
+  let switched: string | null | undefined
   for (const segment of command.split(/\|\||&&|[|;&\n]/)) {
     const words = tokens(segment)
     while (words[0] !== undefined && (words[0] === 'sudo' || words[0] === 'command' || /^[A-Za-z_][A-Za-z0-9_]*=/.test(words[0]))) words.shift()
     const [head, ...rest] = words
+    // A cd after a switch may enter another repository, whose branch is not known.
+    if ((head === 'cd' || head === 'pushd' || head === 'popd') && switched !== undefined) switched = null
     if (head === 'git') {
-      const found = await inspectGit(rest, ctx)
+      const now = switched
+      const found = await inspectGit(rest, now === undefined ? ctx : { ...ctx, branch: async () => now })
       if (found) return found
+      const to = await switchOf(rest, ctx)
+      if (to !== undefined) switched = to
     }
     if (head === 'rm' && rest.some(w => /^-[a-zA-Z]*[rR]/.test(w) || w === '--recursive')) {
       for (const target of rest.filter(w => !w.startsWith('-'))) {
@@ -300,6 +311,24 @@ async function inspectGit(args: string[], ctx: Context): Promise<Finding | undef
   }
 }
 
+/**
+ * The branch a `git switch` or `git checkout` segment moves to: its name, null when it cannot
+ * be told, undefined when the segment moves nowhere this check can trust. `git checkout <name>`
+ * counts only when the name is a local branch, since it may restore a file instead; and git's
+ * own options (`-C dir`) may point at another repository, so a segment with them counts not.
+ */
+async function switchOf(args: string[], ctx: Context): Promise<string | null | undefined> {
+  const [sub, ...rest] = args
+  if ((sub !== 'switch' && sub !== 'checkout') || rest.includes('--')) return undefined
+  const flags = rest.filter(w => w.startsWith('-'))
+  const plain = rest.filter(w => !w.startsWith('-'))
+  if (rest.includes('-') || flags.includes('--detach')) return null
+  const isCreate = flags.some(f => f === '-c' || f === '-C' || f === '-b' || f === '-B' || f === '--create' || f === '--force-create')
+  if (isCreate || sub === 'switch') return plain[0] ?? undefined
+  const name = plain[0]
+  return plain.length === 1 && name !== undefined && (await ctx.isBranch(name)) ? name : undefined
+}
+
 function inspectRemoval(raw: string, ctx: Context, projectRoot: string): Finding | undefined {
   const target = raw.replace(/^['"]|['"]$/g, '')
   if (/^(?:\/|\/\*|~|~\/|~\/\*|\$HOME|\$\{HOME\}|\$HOME\/\*?|\.|\.\/|\.\/\*|\*|\.\.|\.\.\/|\.\.\/\*)$/.test(target)) {
@@ -324,6 +353,17 @@ async function currentBranch($: EngineInterface, root: string): Promise<string |
     return match?.[1] ?? null
   } catch {
     return null
+  }
+}
+
+async function isLocalBranch($: EngineInterface, root: string, name: string): Promise<boolean> {
+  if (name === '' || name.includes('..')) return false
+  try {
+    if (await $.fs.exists(`${root}/.git/refs/heads/${name}`)) return true
+    const packed = String(await $.fs.read(`${root}/.git/packed-refs`))
+    return packed.split('\n').some(line => line.endsWith(` refs/heads/${name}`))
+  } catch {
+    return false
   }
 }
 
