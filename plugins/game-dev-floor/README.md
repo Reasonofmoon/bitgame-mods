@@ -26,7 +26,7 @@ The names sit under the desks; a line under the picture says the same figures in
 
 The picture is one `Raster` of half-block cells (two pixels per cell). While something moves, a timer repaints it in place with `$.ui.blit`; a still floor is not repainted. It is 44 to 100 columns wide (2 to 6 desks; past the sixth desk the rack shows `+n`). On a surface without `Raster` the pane lists the floor as text.
 
-The pane opens by itself when the session's first turn starts, on a terminal 144 columns wide or more (narrower, it waits; `/devfloor` opens it at any width).
+The pane opens by itself when the session's first turn starts, on a terminal 144 columns wide or more, or 110 once you have opened it yourself (narrower, it waits; `/devfloor` opens it at any width).
 
 The characters are original: no company's logo, product art or real person is drawn.
 
