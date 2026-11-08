@@ -2,6 +2,13 @@
 
 `/devfloor` draws the session as an animated pixel-art dev office in a pane. Each piece shows a real figure of the session:
 
+| Busy afternoon | Beacon | Night |
+|---|---|---|
+| ![LEAD editing at the first desk, four subagents at their desks: one reading, one in Bash, one slumped over a red screen, one walking in](docs/busy.png) | ![Dusk sky at 20% context, the ceiling beacon lit, LEAD raising a hand with a yellow "!", a subagent's screen showing a green tick](docs/alarm.png) | ![Night sky at 6% context, the room dark, LEAD slumped on the desk with a "z", one red light on the server rack](docs/night.png) |
+| LEAD on `Edit`; `Explore` reads, `reviewer` runs Bash, `tester` failed, `planner` walks in | context 20% (dusk), a guard refused a call, LEAD waits for approval, `Explore` is CLEAR | context 6%, no turn for two minutes, plan usage 10% left |
+
+<sub>Drawn by the mod's own `pixels()` and `labels()` (scene.ts), 8 screen pixels per scene pixel; in the terminal each cell holds two scene pixels.</sub>
+
 | On the floor | What it shows |
 |---|---|
 | the LEAD desk | the main loop: typing while a turn runs, its screen the kind of tool it ran last |
