@@ -1,6 +1,6 @@
 {
   "name": "bitgame-mods",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "GAME MODE for Gemini CLI — 8-bit looks, real jobs (Trap Guard, Barrier, Loop Breaker, ANSI HUD, Earcons, Save Point, and Jev Choice).",
   "contextFileName": "GEMINI.md",
   "themes": [

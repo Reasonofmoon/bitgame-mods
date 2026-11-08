@@ -4,6 +4,8 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { execFileSync } from 'node:child_process'
+import fs from 'node:fs'
+import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -114,6 +116,60 @@ test('Barrier refuses destructive git, rm, publish, and database commands', () =
   const dropTable = inspectBarrier('run_shell_command', { command: 'psql -c "DROP TABLE users;"' })
   assert.ok(dropTable)
   assert.match(dropTable.why, /DROP\/TRUNCATE/)
+})
+
+/** A throwaway git repository on `main` with a local branch `feat/x`. */
+function tempRepo() {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'bitgame-barrier-'))
+  const git = (...args) => execFileSync('git', args, { cwd: dir, stdio: 'ignore' })
+  git('init', '-q', '-b', 'main')
+  git('-c', 'user.email=t@example.com', '-c', 'user.name=t', 'commit', '-q', '--allow-empty', '-m', 'init')
+  git('branch', 'feat/x')
+  return dir
+}
+
+test('Barrier judges a bare force-push by the branch switched to earlier in the command', () => {
+  const cwd = tempRepo()
+  const why = command => inspectBarrier('run_shell_command', { command }, cwd)?.why
+  try {
+    assert.equal(why('git checkout -q feat/x && git rebase main && git push --force-with-lease'), undefined)
+    assert.equal(why('git switch feat/y && git push -f'), undefined)
+    assert.equal(why('git checkout -b topic && git push -f'), undefined)
+    assert.equal(why('git switch -c topic2; git push origin HEAD --force'), undefined)
+    // Not a local branch: checkout restored a file, and the push is still on main.
+    assert.match(why('git checkout README.md && git push -f'), /protected branch main/)
+    assert.match(why('git checkout feat/x && git checkout main && git push -f'), /protected branch main/)
+    assert.match(why('git switch - && git push -f'), /could not be read/)
+    assert.match(why('git switch feat/y && git push --force origin main'), /protected branch main/)
+    assert.match(why('git -C ../other switch feat/x && git push -f'), /protected branch main/)
+    assert.match(why('git switch feat/x && cd ../other && git push -f'), /could not be read/)
+  } finally {
+    fs.rmSync(cwd, { recursive: true, force: true })
+  }
+})
+
+test('Barrier reads a heredoc body as text, and still checks what a shell runs', () => {
+  const why = command => inspectBarrier('run_shell_command', { command })?.why
+  const bodies = [
+    "git commit -F - <<'EOF'\nfix: `git checkout feat/x && git rebase main &&\ngit push --force-with-lease` from main was refused\nEOF",
+    'git commit -F - <<EOF\nfix: say why\ngit reset --hard is refused\nEOF',
+    'cat > notes.md <<"EOF"\nnpm publish\nrm -rf /\nkubectl delete ns prod\nEOF',
+    'cat <<-EOF > plan.md\n\tgit push -f origin master\n\tEOF',
+    "cat <<'A' <<'B'\ngit push --force origin main\nA\ndocker push img\nB",
+    "cat <<'EOF'\n$(npm publish)\nEOF",
+  ]
+  for (const command of bodies) assert.equal(why(command), undefined, command)
+
+  assert.match(why("git commit -F - <<'EOF'\nmsg\nEOF\ngit push --force origin main"), /protected branch main/)
+  assert.match(why('git push --force origin main && cat <<EOF\nhi\nEOF'), /protected branch main/)
+  assert.match(why('npm publish; cat <<EOF\nhi\nEOF'), /npm publish/)
+  assert.match(why("bash <<'EOF'\ngit push --force origin main\nEOF"), /protected branch main/)
+  assert.match(why('cat <<EOF | sh\nnpm publish\nEOF'), /npm publish/)
+  assert.match(why("ssh host <<'EOF'\ngit reset --hard\nEOF"), /git reset --hard/)
+  assert.match(why('cat <<EOF\n$(npm publish)\nEOF'), /npm publish/)
+  assert.match(why('cat <<EOF\nnotes `npm publish`\nEOF'), /npm publish/)
+  assert.match(why('echo "<<EOF"\ngit push --force origin main\nEOF'), /protected branch main/)
+  assert.match(why('cat <<< "EOF"\ngit push --force origin main'), /protected branch main/)
 })
 
 // ---------------------------------------------------------------------------

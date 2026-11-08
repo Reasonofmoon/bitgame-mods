@@ -1,5 +1,13 @@
 # Changelog
 
+## gemini-extension 0.2.1 — 2026-11-08
+
+### Fixed
+- **Barrier** (`runtime/core.mjs`, `inspectBarrier`) now matches game-barrier 0.2.3. It has the two fixes from #12 and #13:
+  - A force-push that names no branch is judged by the branch an earlier `git switch` / `git checkout <local branch>` in the same command moves to, checked with `git show-ref`. `switch -`, `--detach`, `git -C <dir>` and a `cd` after a switch still count as unknown or another repository, and stay refused.
+  - The body of a heredoc (`<<EOF`, `<<'EOF'`, `<<"EOF"`, `<<-EOF`) is read as text. It is still checked when a shell reads it, and so is each line of an unquoted heredoc that holds `$(` or a backtick.
+  - The `npm publish` rule also matches inside backticks.
+
 ## 0.4.2 — 2026-11-08
 
 ### Fixed
