@@ -7,6 +7,10 @@ import { CLEAR_HOLD_MS, COLORS, decodeCells, fold, guardOf, kindOf, labelRow, pi
 
 const T0 = 1_700_000_000_000
 
+// One plain signature for raising a call: checking an object `as never` against every tool's
+// overload is too deep for tsc (TS2589).
+type AnyToolCall = (input: Record<string, unknown>) => Promise<unknown>
+
 const EMPTY: Floor = {
   lead: { isWorking: false, kind: null, tool: null, errorAt: null },
   workers: [],
@@ -161,7 +165,7 @@ test('a guard refusal sets off the beacon and names the verdict', async ($, on) 
   const { refuseNext } = world(on)
   await start($)
   refuseNext('game-barrier blocked this call: git push --force to main')
-  await $.tool.call({ tool: 'Bash', command: 'git push -f origin main', tool_use_id: 'toolu_x' } as never)
+  await ($.tool.call as unknown as AnyToolCall)({ tool: 'Bash', command: 'git push -f origin main', tool_use_id: 'toolu_x' })
   const view = await floorView($)
   expect(view.texts.join(' ')).toContain('BARRIER!')
 })
@@ -265,7 +269,7 @@ test('calls from an agent the floor never saw start seat nobody', async ($, on) 
   world(on)
   await start($)
   // Engine loops no Agent call started (tool search, wakeups) carry an agentId too.
-  await $.tool.call({ tool: 'ToolSearch', query: 'x', agentId: 'agent-loop', tool_use_id: 'toolu_s' } as never)
+  await ($.tool.call as unknown as AnyToolCall)({ tool: 'ToolSearch', query: 'x', agentId: 'agent-loop', tool_use_id: 'toolu_s' })
   const view = await floorView($)
   expect(labelRow(view.cells ?? '', 80).split(/\s+/).filter(Boolean)).toEqual(['LEAD', 'RACK'])
   expect(view.texts.join(' ')).toContain('동료 0명')
@@ -277,9 +281,9 @@ test('a refusal counts once however often it is seen', async ($, on) => {
   const { refuseNext } = world(on)
   await start($)
   refuseNext('game-trap-guard blocked this call: cat .env')
-  await $.tool.call({ tool: 'Bash', command: 'cat .env', tool_use_id: 'toolu_1' } as never)
+  await ($.tool.call as unknown as AnyToolCall)({ tool: 'Bash', command: 'cat .env', tool_use_id: 'toolu_1' })
   refuseNext('game-trap-guard blocked this call: cat .env')
-  await $.tool.call({ tool: 'Bash', command: 'cat .env', tool_use_id: 'toolu_2' } as never)
+  await ($.tool.call as unknown as AnyToolCall)({ tool: 'Bash', command: 'cat .env', tool_use_id: 'toolu_2' })
   expect((await floorView($)).texts.join(' ')).toContain('TRAP! 가드가 막은 호출 2건')
 })
 
