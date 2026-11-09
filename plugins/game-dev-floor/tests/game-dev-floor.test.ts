@@ -3,7 +3,7 @@ import type { Engine } from 'claude-code/testing'
 import type { On, RenderElement } from 'claude-code'
 
 import type { Floor } from '../types'
-import { COLORS, decodeCells, fold, guardOf, kindOf, labelRow, pixels, ROWS, sceneWidth, screenCenter, skyOf, verdictsOf } from '../hooks/scene'
+import { CLEAR_HOLD_MS, COLORS, decodeCells, fold, guardOf, kindOf, labelRow, pixels, ROWS, sceneWidth, screenCenter, skyOf, verdictsOf } from '../hooks/scene'
 
 const T0 = 1_700_000_000_000
 
@@ -281,4 +281,29 @@ test('a refusal counts once however often it is seen', async ($, on) => {
   refuseNext('game-trap-guard blocked this call: cat .env')
   await $.tool.call({ tool: 'Bash', command: 'cat .env', tool_use_id: 'toolu_2' } as never)
   expect((await floorView($)).texts.join(' ')).toContain('TRAP! 가드가 막은 호출 2건')
+})
+
+test('a worker waiting with no desk takes the desk another left, and walks in to it', async ($, on) => {
+  const { clock, blits } = world(on)
+  await start($)
+  const ui = await $.ui.mount({
+    plugin: 'game-dev-floor',
+    surface: 'terminal',
+    component: 'Pane',
+    requestId: 'devfloor',
+    props: { title: 'DEV FLOOR', isFocused: false, bodyColumns: 100, placement: 'dock', scroll: { offset: 0, bodyRows: 20 }, view: {} },
+  })
+  for (const name of ['one', 'two', 'three', 'four', 'five', 'six']) await $.agent.spawn(spawn(`toolu_${name}`, 'general-purpose', name))
+  await clock.advance(2_000)
+  const full = labelRow(blits[blits.length - 1] ?? '', 100)
+  expect(full).toContain('+1')
+  expect(full).not.toContain('six')
+  // The first hands its report back, shows CLEAR, walks out: the sixth takes its desk.
+  await $.turn.complete({ answer: 'ok', durationMs: 2_000, isAborted: false, turnId: 't', reason: 'answer', agentId: 'agent-1' })
+  await clock.advance(CLEAR_HOLD_MS + 1_500)
+  const after = labelRow(blits[blits.length - 1] ?? '', 100)
+  expect(after).toContain('six')
+  expect(after).not.toContain('+1')
+  expect(after).not.toContain('one')
+  await ui.unmount()
 })

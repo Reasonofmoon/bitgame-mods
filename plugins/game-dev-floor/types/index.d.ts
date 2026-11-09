@@ -18,6 +18,8 @@ export type Worker = {
   /** When its last call failed (ms), or null. */
   errorAt: number | null
   startedAt: number
+  /** When it was given its desk (ms): it walks in to the desk from then. Null while it waits for one. */
+  seatedAt: number | null
   /** When its loop ended (ms), or null while it runs. */
   endedAt: number | null
   /** When it was last heard from (ms): a worker silent for long is taken off the floor. */

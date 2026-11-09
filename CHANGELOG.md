@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.4.3 — 2026-11-08
+
+### Fixed
+- **game-dev-floor** 0.1.1: a subagent that started while all five desks were held (shown as `+n` on the rack) now takes the first desk another leaves, and walks in to it. Before, it stayed on the rack until it ended, even with desks free.
+  - Only a working subagent is seated; one that ended while it waited stays off the floor.
+
 ## gemini-extension 0.2.1 — 2026-11-08
 
 ### Fixed

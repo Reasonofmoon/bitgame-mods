@@ -6,7 +6,7 @@
   },
   "metadata": {
     "description": "GAME MODE for Claude Code: 23 mods for an 8-bit look where every piece does a job (HUD, battle log, three guards, save point and title screen, sound cues, stance, casting, clear time, party, quest, minimap, hint, map, spell check, answer memory, hedge mark, item get, equip, achievements, choice, dev floor)",
-    "version": "0.4.2"
+    "version": "0.4.3"
   },
   "plugins": [
     {
@@ -315,7 +315,7 @@
       "name": "game-dev-floor",
       "source": "./plugins/game-dev-floor",
       "description": "An animated pixel-art dev office in a pane: the main loop types at the LEAD desk, subagents walk in to desks, screens show the tool kind, failed calls flash red, guard refusals set off the beacon, the sky is context left, cups are cost, rack lights are plan usage left",
-      "version": "0.1.0",
+      "version": "0.1.1",
       "category": "development",
       "keywords": [
         "mod",
