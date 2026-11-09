@@ -85,3 +85,10 @@ API 출처는 plugin-authoring 스킬의 `types/claude-code.d.ts`입니다.
 2. `Worker.seatedAt` 추가: 걷기 입장은 앉은 시각부터. `reseat()`는 일하는(active) 동료만 앉힘.
 3. 타이머 `tick()`에서 대기 동료와 빈 책상이 함께 있을 때만 `reseat()`로 상태 갱신.
 4. 0.1.1로 올림 (plugin.json, marketplace.json, CHANGELOG), `scripts/check.sh`, `tsc`.
+
+## 0.1.2 · 화면 밖 책상의 동료 (2026-11-09)
+실제 세션(패널 약 87열, 책상 4개 표시)에서 발견: 5번 책상(화면 밖)에 앉은 동료는 보이는 책상이 모두 비어도 `+n`으로만 남음.
+1. 테스트 먼저: 70열(책상 4개) 패널, 동료 5명 → `+1`; 앞 4명이 CLEAR 후 퇴장하면 `five`가 이름 줄에 나오고 `+`가 사라져야 함 (RED 확인).
+2. `reseat(workers, now, desks)`: 화면 밖(desk ≥ desks)의 일하는 동료를 보이는 빈 책상으로 옮기고 `seatedAt`을 새로 찍음. `freeDesk()`에 `limit` 추가.
+3. `tick()`이 `deskCount(frame.mounted.cols)`를 넘김.
+4. 0.1.2 / 모음 0.4.4, CHANGELOG, tsc, `scripts/check.sh`.
