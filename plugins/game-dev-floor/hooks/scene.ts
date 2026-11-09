@@ -183,25 +183,35 @@ function workerScreen(w: Worker, now: number): Screen {
   return w.kind ?? 'other'
 }
 
-/** Seats working workers waiting with no desk at the desks others left; the rest keep theirs. */
-export function reseat(workers: readonly Worker[], now: number): Worker[] {
+/**
+ * Seats working workers waiting with no desk at the desks others left, and moves a working
+ * worker at a desk past the pane's edge (`desks` shown) to a desk the pane shows once one is
+ * free. A worker given a desk walks in to it; the rest keep theirs.
+ */
+export function reseat(workers: readonly Worker[], now: number, desks = MAX_DESKS): Worker[] {
   const here = workers.filter(w => !isGone(w, now))
   return here.reduce<Worker[]>((seated, w) => {
-    if (w.desk !== null || w.status !== 'active') return seated
-    const desk = freeDesk(seated, now)
+    const desk = deskFor(seated, w, now, desks)
     return desk === null ? seated : seated.map(s => (s.id === w.id ? { ...s, desk, seatedAt: now } : s))
   }, here)
 }
 
-/** True when a working worker waits with no desk and a desk is free for it. */
-export function canSeat(workers: readonly Worker[], now: number): boolean {
-  return workers.some(w => w.desk === null && w.status === 'active' && !isGone(w, now)) && freeDesk(workers, now) !== null
+/** True when a working worker waits with no desk, or sits past the pane's edge, and a desk is free for it. */
+export function canSeat(workers: readonly Worker[], now: number, desks = MAX_DESKS): boolean {
+  return workers.some(w => !isGone(w, now) && deskFor(workers, w, now, desks) !== null)
 }
 
-/** The first desk past the LEAD that no worker on the floor holds, or null when all are held. */
-export function freeDesk(workers: readonly Worker[], now: number): number | null {
+/** The desk to give a worker now, or null to leave it where it is. */
+function deskFor(workers: readonly Worker[], w: Worker, now: number, desks: number): number | null {
+  if (w.status !== 'active') return null
+  if (w.desk === null) return freeDesk(workers, now)
+  return w.desk >= desks ? freeDesk(workers, now, desks) : null
+}
+
+/** The first desk past the LEAD, below `limit`, that no worker on the floor holds, or null when all are held. */
+export function freeDesk(workers: readonly Worker[], now: number, limit = MAX_DESKS): number | null {
   const held = new Set(workers.filter(w => !isGone(w, now)).map(w => w.desk))
-  for (let slot = 1; slot < MAX_DESKS; slot++) if (!held.has(slot)) return slot
+  for (let slot = 1; slot < Math.min(limit, MAX_DESKS); slot++) if (!held.has(slot)) return slot
   return null
 }
 

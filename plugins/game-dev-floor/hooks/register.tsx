@@ -4,7 +4,7 @@ import type { EngineInterface, Register } from 'claude-code'
 import type { Floor, Worker } from '../types'
 import { clock, intensityOf, paletteOf } from './palette'
 import type { Palette } from './palette'
-import { canSeat, cellsOf, guardOf, isAlarm, isGone, KEY, kindOf, reseat, ROWS, sceneWidth, verdictsOf } from './scene'
+import { canSeat, cellsOf, deskCount, guardOf, isAlarm, isGone, KEY, kindOf, reseat, ROWS, sceneWidth, verdictsOf } from './scene'
 import type { LabelColors } from './scene'
 
 // GAME MODE · DEV FLOOR
@@ -245,7 +245,8 @@ function stopTimer(): void {
 }
 
 /**
- * One frame: seat a worker waiting on the rack at a desk another left, repaint the mounted floor in place when its picture changed, redraw the pane
+ * One frame: seat a worker waiting on the rack, or sitting past the pane's edge, at a desk
+ * another left, repaint the mounted floor in place when its picture changed, redraw the pane
  * when its words did (a worker walked out, an alarm ended), and now and then blit a still
  * floor to learn whether the pane is still open; a closed pane stops the timer.
  */
@@ -255,9 +256,11 @@ async function tick($: EngineInterface): Promise<void> {
   try {
     const cols = frame.mounted.cols
     const now = await $.clock.now()
-    // A desk freed by a worker who walked out goes to one waiting on the rack.
-    if (canSeat((await read($, floor)).workers, now)) {
-      await update($, floor, f => (canSeat(f.workers, now) ? { ...f, workers: reseat(f.workers, now) } : f))
+    // A desk freed by a worker who walked out goes to one waiting on the rack, or to one
+    // sitting past the edge of this pane.
+    const desks = deskCount(cols)
+    if (canSeat((await read($, floor)).workers, now, desks)) {
+      await update($, floor, f => (canSeat(f.workers, now, desks) ? { ...f, workers: reseat(f.workers, now, desks) } : f))
     }
     const f = await read($, floor)
     const words = wordsOf(f, now, frame.isHardcore)

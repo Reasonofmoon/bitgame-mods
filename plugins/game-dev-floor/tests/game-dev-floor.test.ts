@@ -311,3 +311,30 @@ test('a worker waiting with no desk takes the desk another left, and walks in to
   expect(after).not.toContain('one')
   await ui.unmount()
 })
+
+test('a worker at a desk past the edge of the pane moves in to a desk the pane shows once one is free', async ($, on) => {
+  const { clock, blits } = world(on)
+  await start($)
+  // 70 columns hold four desks: the LEAD's and three more. The fifth worker sits past the edge.
+  const ui = await $.ui.mount({
+    plugin: 'game-dev-floor',
+    surface: 'terminal',
+    component: 'Pane',
+    requestId: 'devfloor',
+    props: { title: 'DEV FLOOR', isFocused: false, bodyColumns: 70, placement: 'dock', scroll: { offset: 0, bodyRows: 20 }, view: {} },
+  })
+  for (const name of ['one', 'two', 'three', 'four', 'five']) await $.agent.spawn(spawn(`toolu_${name}`, 'general-purpose', name))
+  await clock.advance(2_000)
+  const full = labelRow(blits[blits.length - 1] ?? '', 70)
+  expect(full).toContain('+')
+  expect(full).not.toContain('five')
+  // The ones at the desks the pane shows hand their reports back and walk out.
+  for (const id of ['agent-1', 'agent-2', 'agent-3', 'agent-4']) {
+    await $.turn.complete({ answer: 'ok', durationMs: 2_000, isAborted: false, turnId: 't', reason: 'answer', agentId: id })
+  }
+  await clock.advance(CLEAR_HOLD_MS + 1_500)
+  const after = labelRow(blits[blits.length - 1] ?? '', 70)
+  expect(after).toContain('five')
+  expect(after).not.toContain('+')
+  await ui.unmount()
+})

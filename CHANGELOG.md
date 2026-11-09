@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.4.4 — 2026-11-09
+
+### Fixed
+- **game-dev-floor** 0.1.2: a subagent sitting at a desk past the edge of a narrow pane (counted in `+n` on the rack) now walks in to the first desk the pane shows once one is free. Before, it stayed out of sight until it ended, even with every desk in view empty. For example, a pane about 87 columns wide shows four desks, so the fifth subagent was never drawn.
+
 ## 0.4.3 — 2026-11-08
 
 ### Fixed
