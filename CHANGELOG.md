@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.4.5 — 2026-11-12
+
+### Added
+- **game-choice** 0.4.0: with `GEMINI_API_KEY` set, the same decision card is also sent to Gemini Decision 1 (`gemini-decision-1`, `POST https://generativelanguage.googleapis.com/v1beta/decisions`, header `x-goog-api-key`) in the shadow. Jev still ranks the buttons and the shadow verdict. Gemini's per-option probabilities, choice, confidence, latency and failure are stored on the pick (`~/.claude/game-choice/picks.json`) and shown by `/choice` (`last-gemini.json`). `scripts/analyze-picks.mjs` reports Gemini's first-choice hit rate and calibration beside Jev's, and how often the two engines agree. Nothing is picked or sent on Gemini's answer. Without the key, no request is made and the key is never stored.
+  - The text sent to Google is the same decision state Jev already sees (items 1, 2 and 4, capped at 3000 characters) plus each option's label and sentence. Skill drafts are not sent to Gemini. Trap-guard-style secret filtering is not applied to that text.
+
+### Evidence
+- `bash scripts/check.sh` ✓ marketplace + 23 plugins (`claude plugin validate --strict`, `claude plugin test`) on Claude Code 2.1.296. game-choice 29/29. No live call to Google: the request and response shapes follow the Decisions REST reference, and tests use a fake key built at run time.
+
 ## 0.4.4 — 2026-11-09
 
 ### Fixed

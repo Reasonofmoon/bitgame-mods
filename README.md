@@ -165,7 +165,7 @@ gemini extensions link ./gemini-extension
 | 19 | [**game-item-get**](plugins/game-item-get) | `ToolResult` · `CommandOutput` · `tool.call` | `/inventory` |
 | 20 | [**game-equip**](plugins/game-equip) | `InfoNotice` · `$.ui.log` · `turn.start` · `classic.PostModelSwitch` | — |
 | 21 | [**game-achievement**](plugins/game-achievement) | `tool.call` · `session.append` · `session.compact` · `CommandOutput` | `/achievements` |
-| 22 | [**game-choice**](plugins/game-choice) | `turn.complete` · `prompt.suggest` · `prompt.edit` · `prompt.submit` · `AbovePrompt` · `$.http.fetch` (Jev) · `$.model.fork` | `/choice` |
+| 22 | [**game-choice**](plugins/game-choice) | `turn.complete` · `prompt.suggest` · `prompt.edit` · `prompt.submit` · `AbovePrompt` · `$.http.fetch` (Jev, optional Gemini shadow) · `$.model.fork` | `/choice` |
 | 23 | [**game-dev-floor**](plugins/game-dev-floor) | `Pane` (`Raster` + `$.ui.blit`) · `agent.spawn` · `tool.call` · `tool.check` · `session.append` · `session.measure` · `$.clock.every` | `/devfloor` |
 
 What each guard refuses, in one line each (details in each README):
@@ -196,6 +196,7 @@ Change any of these with `/plugin configure <mod>@bitgame-mods`.
 | `skillSuggest` · `skillThreshold` | choice | `true` · `50` | send drafts to Jev for skill suggestions; the probability (%) a skill needs to show |
 
 - **`pass`** lets the next refused call run once (within 10 minutes). `pass`, `warn` and `off` are accepted only when **you** type them, so Claude cannot lift a guard by running the command itself.
+- **`GEMINI_API_KEY`** (environment, choice): when set, Gemini Decision 1 ranks the same decisions in the shadow and the pick records it. It does not change the buttons. Unset, Gemini is not called. This is not a `/plugin configure` setting.
 - **Pixel font:** in a terminal the look comes from your terminal's font. Set it to **Galmuri Mono 11** ([quiple/galmuri](https://github.com/quiple/galmuri), OFL) and the whole screen matches.
 
 ---
@@ -234,7 +235,7 @@ If a guard refuses an ordinary command, or misses a case its README lists, it is
 - **Sound:** Windows plays through PowerShell's `SoundPlayer` (first cue about a second late while PowerShell starts); Linux needs `paplay` (PulseAudio or PipeWire) or `aplay`.
 - **Windows**: paths are compared without regard to case or slash direction (`C:\`, `c:/`, Git Bash `/c/`); tests cover them.
 - **Headless runs** (`claude -p`) draw nothing; the guards still refuse.
-- **Choice** reads only the `[상태 요약]` format (its README shows it). Jev ranking and skill suggestions need `TYPESAFE_API_KEY` and send the summary, or the draft you are typing, to typesafe.ai; set `skillSuggest` off for private work. Without a key the buttons keep Claude's order.
+- **Choice** reads only the `[상태 요약]` format (its README shows it). Jev ranking and skill suggestions need `TYPESAFE_API_KEY` and send the summary, or the draft you are typing, to typesafe.ai; set `skillSuggest` off for private work. Without a key the buttons keep Claude's order. `GEMINI_API_KEY` also sends that same decision text (not the skill draft) to Google as a shadow rank. Neither call is scrubbed by trap-guard.
 
 ---
 
@@ -263,7 +264,7 @@ Zero runtime dependencies. The hooks modules run inside Claude Code's own mod en
 - **안전과 비용 (P1)**: HUD(HP=남은 컨텍스트, MP=요금제 한도, G=비용 ₩), 전투 로그(TURN·COMBO·BREAK·+/− 줄 수·가드별 판정), 트랩 가드(비밀키 노출 차단), 결계(되돌릴 수 없는 명령 차단), 루프 차단, 세이브 포인트(세이브 화면·PASSWORD·타이틀 화면·`/load`), 효과음(macOS·Windows·Linux)
 - **흐름 파악 (P2)**: STANCE(권한 모드 배지), CASTING(지금 하는 일과 이번 턴 비용), CLEAR(평소 대비 턴 시간), PARTY·QUEST·MINIMAP 패널, 힌트 줄, MAP(브랜치와 플레이 시간)
 - **습관 (P3)**: 스펠 체크(모호어 밑줄, 완료 조건 먼저 요청, `P1` 메시지 창), 지난번 선택 ★, 추정 문장 `[?]` 표시, ITEM GET!·`/inventory`, EQUIP(모델), 업적
-- **이어 하기 (P4)**: CHOICE — 답변 끝 `[상태 요약]`의 재개 프롬프트를 입력창 제안(Tab)으로, 결정 항목을 버튼으로 띄우고 고른 대로 프롬프트를 다듬음. Jev(typesafe.ai)가 뒤에서 순위를 매기며 섀도 모드(기본)에서는 확률을 숨기고 기록만 함. 입력 중 맞는 스킬 제안
+- **이어 하기 (P4)**: CHOICE — 답변 끝 `[상태 요약]`의 재개 프롬프트를 입력창 제안(Tab)으로, 결정 항목을 버튼으로 띄우고 고른 대로 프롬프트를 다듬음. Jev(typesafe.ai)가 뒤에서 순위를 매기며 섀도 모드(기본)에서는 확률을 숨기고 기록만 함. `GEMINI_API_KEY`가 있으면 Gemini Decision 1도 같은 결정을 섀도로 기록할 뿐, 버튼은 바꾸지 않음. 입력 중 맞는 스킬 제안
 - **Gemini CLI (`gemini-extension/`)**: `gemini extensions link ./gemini-extension` 한 줄로 레트로 테마 3종(`NES`/`GameBoy`/`Amber`), 3대 가드(`TRAP!`/`BARRIER!`/`LOOP!`), 8-Bit HUD, 스펠 체크, 추정 표시, 세이브 포인트 및 Jev `/game:pick`을 바로 사용할 수 있습니다.
 
 설치는 위 [Start in 30 seconds](#start-in-30-seconds)의 명령 한 번이면 됩니다. Windows는 PowerShell 블록을 쓰세요.

@@ -1,15 +1,24 @@
 import { expect, test } from 'claude-code/testing'
 
+import { summarizePicks } from '../scripts/report.mjs'
+
 import {
+  GEMINI_MODEL,
   STATE_MAX_CHARS,
   applyDecisionRanks,
+  blockReason,
+  choiceCallOutcome,
   composePrompt,
   decisionRequest,
   decisionState,
+  geminiDecisionRequest,
+  geminiPick,
+  geminiShadowFromAnswers,
   parseChoiceAnswers,
   parseStatusSummary,
   pickSkill,
   rankedOptions,
+  redactSecret,
   riskIn,
   shadowVerdict,
   shortlistSkills,
@@ -177,4 +186,95 @@ test('only drafts worth classifying go to Jev', () => {
   expect(shouldClassify('짧음')).toBe(false)
   expect(shouldClassify('/hwpx 이 파일을 변환해 줘')).toBe(false)
   expect(shouldClassify('이 시험지를 한글 파일로 변환해 줘')).toBe(true)
+})
+
+test('Gemini request reuses Jev questions as one text block; ranks map back by option id', () => {
+  const s = parseStatusSummary(ANSWER)
+  if (!s) throw new Error('no summary')
+  const jev = decisionRequest(s)
+  const gemini = geminiDecisionRequest(s)
+  expect(gemini.model).toBe(GEMINI_MODEL)
+  expect(gemini.input).toEqual([{ type: 'text', text: jev.state }])
+  expect(gemini.questions).toEqual(jev.questions)
+
+  const outcome = choiceCallOutcome({
+    answers: {
+      d0: { type: 'choice', choice: 'B', confidence: 0.7, probabilities: { A: 0.3, B: 0.7 } },
+      d1: { type: 'choice', choice: 'nope', confidence: 0.5, probabilities: { A: 0.4, B: 0.6 } },
+    },
+  })
+  if (!outcome || !('answers' in outcome)) throw new Error('expected answers')
+  const ranked = geminiShadowFromAnswers(s, outcome.answers, 180, null)
+  expect(ranked.failure).toBe(null)
+  expect(geminiPick(ranked, 0)).toEqual({ p: [0.3, 0.7], choice: 1, confidence: 0.7, ms: 180, failure: null })
+  expect(geminiPick(ranked, 1).choice).toBe(null)
+  expect(geminiPick(ranked, 1).failure).toBe('알 수 없는 선택지 nope')
+})
+
+test('a blocked Gemini body and a secret in an error are not treated as a rank', () => {
+  expect(blockReason({ prompt_feedback: { block_reason: 'safety' } })).toBe('safety')
+  const blocked = choiceCallOutcome({ prompt_feedback: { block_reason: 'safety' }, answers: {} })
+  expect(blocked).toEqual({ failure: '입력 차단 (safety)' })
+  expect(choiceCallOutcome({ answers: {} })).toEqual({ failure: '응답에 답이 없음' })
+  expect(choiceCallOutcome({ nope: true })).toBe(null)
+  const s = parseStatusSummary(ANSWER)
+  if (!s) throw new Error('no summary')
+  const failed = geminiShadowFromAnswers(s, null, 8000, '입력 차단 (safety)')
+  expect(failed.failure).toBe('입력 차단 (safety)')
+  expect(geminiPick(failed, 0)).toEqual({ p: [], choice: null, confidence: null, ms: 8000, failure: '입력 차단 (safety)' })
+  const secret = ['AIza', 'not-real', '0000'].join('')
+  expect(redactSecret(`header ${secret} leaked`, secret)).toBe('header … leaked')
+  expect(redactSecret('plain', '')).toBe('plain')
+})
+
+test('analyze-picks reports Gemini hit rate, calibration and agreement beside Jev', () => {
+  const row = (over: Record<string, unknown>) => ({
+    auto: false,
+    question: 'q',
+    options: [
+      { label: '가', p: 0.2 },
+      { label: '나', p: 0.8 },
+    ],
+    confidence: 0.8,
+    rank: 'jev',
+    shadowMode: true,
+    shadow: { eligible: false, pick: null, reasons: ['확률 미달'] },
+    ...over,
+  })
+  const out = summarizePicks([
+    row({
+      cardAt: 1,
+      question: 'q1',
+      picked: 1,
+      top: 1,
+      gemini: { p: [0.25, 0.75], choice: 1, confidence: 0.75, ms: 100, failure: null },
+    }),
+    row({
+      cardAt: 2,
+      question: 'q2',
+      options: [
+        { label: '가', p: 0.4 },
+        { label: '나', p: 0.6 },
+      ],
+      picked: 0,
+      top: 1,
+      gemini: { p: [0.55, 0.45], choice: 0, confidence: 0.55, ms: 90, failure: null },
+    }),
+    row({
+      cardAt: 3,
+      question: 'q3',
+      options: [
+        { label: '가', p: 0.9 },
+        { label: '나', p: 0.1 },
+      ],
+      picked: 0,
+      top: 0,
+      gemini: { p: [], choice: null, confidence: null, ms: 8000, failure: 'HTTP 500' },
+    }),
+  ])
+  expect(out).toContain('Jev 1순위 일치율: 2/3 = 66.7%')
+  expect(out).toContain('Gemini 1순위 일치율: 2/2 = 100.0% (성공한 호출 2개, 실패 1개)')
+  expect(out).toContain('Jev·Gemini 1순위 일치: 1/2 = 50.0%')
+  expect(out).toContain('50–70%   1/1 = 100.0% (Gemini 평균 55.0%)')
+  expect(out).toContain('70–90%   1/1 = 100.0% (Gemini 평균 75.0%)')
 })
