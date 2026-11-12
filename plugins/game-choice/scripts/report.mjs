@@ -40,7 +40,9 @@ export function summarizePicks(rows) {
   // A decision can be clicked more than once; its last pick is the person's answer.
   const last = new Map()
   for (const r of human) last.set(`${cardOf(r)}\u0000${r.question}`, r)
-  const decisions = [...last.values()].filter(r => r.rank === 'jev' && r.options.every(o => typeof o.p === 'number'))
+  const latest = [...last.values()]
+  // Jev's bars use only the decisions Jev actually scored.
+  const decisions = latest.filter(r => r.rank === 'jev' && r.options.every(o => typeof o.p === 'number'))
   const cards = new Set(decisions.map(cardOf))
 
   // Rows written before `top` was recorded: Jev's first choice is the highest p (first option on ties).
@@ -50,18 +52,21 @@ export function summarizePicks(rows) {
   const bins = fillBins(decisions.flatMap(r => r.options.map((o, i) => ({ p: o.p, picked: i === r.picked }))))
   const bin90 = bins.at(-1)
 
-  // Gemini is recorded only when GEMINI_API_KEY was set. A call that failed, or that did not
-  // score every option, is left out of the hit rate and the bins.
+  // Gemini is counted on its own rows, including picks Jev did not rank.
+  // A missing choice, a failure string, or a short probability list is a failed decision.
   const geminiReady = r => {
     const g = r.gemini
     return Boolean(
       g && !g.failure && typeof g.choice === 'number' && Array.isArray(g.p) && g.p.length === r.options.length && g.p.every(p => typeof p === 'number'),
     )
   }
-  const geminiRows = decisions.filter(geminiReady)
+  const withGemini = latest.filter(r => r.gemini)
+  const geminiRows = withGemini.filter(geminiReady)
   const geminiHits = geminiRows.filter(r => r.gemini.choice === r.picked).length
-  const geminiFailed = decisions.filter(r => r.gemini && r.gemini.failure).length
-  const engineAgree = geminiRows.filter(r => topOf(r) === r.gemini.choice).length
+  const geminiFailed = withGemini.length - geminiRows.length
+  // Agreement needs both engines. It stays on the Jev-scored rows Gemini also scored.
+  const both = decisions.filter(geminiReady)
+  const engineAgree = both.filter(r => topOf(r) === r.gemini.choice).length
   const geminiBins = fillBins(geminiRows.flatMap(r => r.gemini.p.map((p, i) => ({ p, picked: i === r.picked }))))
 
   const withShadow = decisions.filter(r => r.shadow)
@@ -87,8 +92,8 @@ export function summarizePicks(rows) {
     '',
     `Jev 1순위 일치율: ${frac(top1Hits, decisions.length)}`,
     `  퍼센트를 보고 고른 결정: ${frac(agree(shown), shown.length)} · 숨기고 고른 결정(섀도 모드): ${frac(agree(hidden), hidden.length)}`,
-    `Gemini 1순위 일치율: ${frac(geminiHits, geminiRows.length)} (성공한 호출 ${geminiRows.length}개, 실패 ${geminiFailed}개)`,
-    `Jev·Gemini 1순위 일치: ${frac(engineAgree, geminiRows.length)}`,
+    `Gemini 1순위 일치율: ${frac(geminiHits, geminiRows.length)} (성공한 결정 ${geminiRows.length}개, 실패 ${geminiFailed}개)`,
+    `Jev·Gemini 1순위 일치: ${frac(engineAgree, both.length)}`,
     '확률 구간별 적중률 (옵션 단위: Jev가 매긴 확률 vs 실제로 골린 비율)',
     ...bins.map(b => `  ${b.name.padEnd(8)} ${b.n ? `${frac(b.picked, b.n)} (Jev 평균 ${pct(b.pSum / b.n)})` : '-'}`),
     'Gemini 확률 구간별 적중률 (옵션 단위: Gemini가 매긴 확률 vs 실제로 골린 비율)',

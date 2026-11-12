@@ -242,9 +242,11 @@ export function redactSummary(summary: Summary): { summary: Summary; redacted: n
 export function geminiDecisionRequest(summary: Summary): { request: GeminiRequest; redacted: number } {
   const clean = redactSummary(summary)
   const req = decisionRequest(clean.summary)
+  // The resume itself is not cut inside decisionState. Gemini's input stays within the published cap.
+  const text = req.state.length > STATE_MAX_CHARS ? req.state.slice(0, STATE_MAX_CHARS) : req.state
   return {
     redacted: clean.redacted,
-    request: { model: GEMINI_MODEL, input: [{ type: 'text', text: req.state }], questions: req.questions },
+    request: { model: GEMINI_MODEL, input: [{ type: 'text', text }], questions: req.questions },
   }
 }
 
@@ -294,6 +296,26 @@ export function geminiShadowFromAnswers(summary: Summary, answers: Record<string
       }
     }),
   }
+}
+
+/**
+ * Fills `gemini` on picks that were saved before this card's Gemini call settled.
+ * A pick that already has a Gemini record is left as it was.
+ */
+export function attachGeminiToPicks<T extends { cardAt?: unknown; question?: unknown; gemini?: unknown }>(
+  picks: readonly T[],
+  cardAt: number,
+  questions: readonly string[],
+  shadow: GeminiShadow,
+): T[] {
+  return picks.map(row => {
+    if (typeof row !== 'object' || row === null) return row
+    if (row.cardAt !== cardAt || row.gemini) return row
+    if (typeof row.question !== 'string') return row
+    const di = questions.indexOf(row.question)
+    if (di < 0) return row
+    return { ...row, gemini: geminiPick(shadow, di) }
+  })
 }
 
 /** The flat record stored on one pick. */

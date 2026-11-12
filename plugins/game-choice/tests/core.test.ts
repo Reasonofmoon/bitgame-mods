@@ -5,8 +5,10 @@ import { redactSecrets } from '../hooks/secrets'
 
 import {
   GEMINI_MODEL,
+  GEMINI_URL,
   STATE_MAX_CHARS,
   applyDecisionRanks,
+  attachGeminiToPicks,
   blockReason,
   choiceCallOutcome,
   composePrompt,
@@ -196,7 +198,9 @@ test('Gemini request reuses Jev questions as one text block; ranks map back by o
   const jev = decisionRequest(s)
   const gemini = geminiDecisionRequest(s)
   expect(gemini.redacted).toBe(0)
-  expect(gemini.request.model).toBe(GEMINI_MODEL)
+  expect(GEMINI_URL).toBe('https://generativelanguage.googleapis.com/v1beta/decisions')
+  expect(GEMINI_MODEL).toBe('gemini-decision-1')
+  expect(gemini.request.model).toBe('gemini-decision-1')
   expect(gemini.request.input).toEqual([{ type: 'text', text: jev.state }])
   expect(gemini.request.questions).toEqual(jev.questions)
 
@@ -279,6 +283,28 @@ test('Gemini redacts secret-shaped values from the summary and the options, and 
   expect(decisionRequest(summary).state.includes(anthropic)).toBe(true)
 })
 
+test('Gemini input is cut to the published cap when the resume is longer; Jev is not', () => {
+  const resume = '이어서 '.repeat(800)
+  const summary = parseStatusSummary(['[상태 요약]', '1. 지금까지 한 일:', '   - 문서', '3. 내가 결정해야 할 것:', '   - Q: 다음 절은?', '     - 예시 => 예시를 써라.', '     - 표 => 표로 써라.', '4. 다음에 이어서 할 때 붙여넣을 프롬프트:', `   - ${resume}`, '5. x'].join('\n'))
+  if (!summary) throw new Error('no summary')
+  expect(decisionRequest(summary).state.length).toBeGreaterThan(STATE_MAX_CHARS)
+  expect(geminiDecisionRequest(summary).request.input[0]?.text.length).toBe(STATE_MAX_CHARS)
+})
+
+test('a pick saved before Gemini settles receives the rank later', () => {
+  const shadow = geminiShadowFromAnswers(
+    { resume: 'r', done: [], todo: [], decisions: [{ question: 'q', picked: null, confidence: null, options: [{ label: '가', append: 'a', p: null }, { label: '나', append: 'b', p: null }] }] },
+    { d0: { choice: 'B', confidence: 0.8, probabilities: { A: 0.2, B: 0.8 } } },
+    40,
+    null,
+  )
+  const picks = [{ cardAt: 7, question: 'q', picked: 1 }, { cardAt: 7, question: 'q', gemini: { choice: 0 } }, { cardAt: 8, question: 'q' }]
+  const next = attachGeminiToPicks(picks, 7, ['q'], shadow)
+  expect(next[0]?.gemini).toEqual({ p: [0.2, 0.8], choice: 1, confidence: 0.8, ms: 40, failure: null })
+  expect(next[1]?.gemini).toEqual({ choice: 0 })
+  expect(next[2]?.gemini).toBeUndefined()
+})
+
 test('analyze-picks reports Gemini hit rate, calibration and agreement beside Jev', () => {
   const row = (over: Record<string, unknown>) => ({
     auto: false,
@@ -323,9 +349,31 @@ test('analyze-picks reports Gemini hit rate, calibration and agreement beside Je
       top: 0,
       gemini: { p: [], choice: null, confidence: null, ms: 8000, failure: 'HTTP 500' },
     }),
+    // Jev never scored this one. Gemini still counts.
+    row({
+      cardAt: 4,
+      question: 'q4',
+      rank: 'error',
+      options: [
+        { label: '가', p: null },
+        { label: '나', p: null },
+      ],
+      picked: 0,
+      top: 0,
+      gemini: { p: [0.9, 0.1], choice: 0, confidence: 0.9, ms: 12, failure: null },
+    }),
+    // A choice with a short probability list is a failed decision, not a silent omission.
+    row({
+      cardAt: 5,
+      question: 'q5',
+      rank: 'error',
+      picked: 0,
+      top: 0,
+      gemini: { p: [0.5], choice: 0, confidence: 0.5, ms: 1, failure: null },
+    }),
   ])
   expect(out).toContain('Jev 1순위 일치율: 2/3 = 66.7%')
-  expect(out).toContain('Gemini 1순위 일치율: 2/2 = 100.0% (성공한 호출 2개, 실패 1개)')
+  expect(out).toContain('Gemini 1순위 일치율: 3/3 = 100.0% (성공한 결정 3개, 실패 2개)')
   expect(out).toContain('Jev·Gemini 1순위 일치: 1/2 = 50.0%')
   expect(out).toContain('50–70%   1/1 = 100.0% (Gemini 평균 55.0%)')
   expect(out).toContain('70–90%   1/1 = 100.0% (Gemini 평균 75.0%)')

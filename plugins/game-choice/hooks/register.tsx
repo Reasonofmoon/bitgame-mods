@@ -9,6 +9,7 @@ import {
   JEV_URL,
   allPicked,
   applyDecisionRanks,
+  attachGeminiToPicks,
   choiceCallOutcome,
   composePrompt,
   decisionRequest,
@@ -48,8 +49,8 @@ type JevResult =
   | { ok: false; failure: 'no-key' | 'error'; note: string }
 
 type GeminiResult =
-  | { ok: true; answers: Record<string, ChoiceAnswer>; ms: number }
-  | { ok: false; failure: 'error'; note: string; ms: number }
+  | { ok: true; answers: Record<string, ChoiceAnswer>; ms: number; trace: EngineTrace }
+  | { ok: false; failure: 'error'; note: string; ms: number; trace: EngineTrace }
 
 const LAST_JEV_KEY = 'lastJev'
 const LAST_GEMINI_KEY = 'lastGemini'
@@ -107,9 +108,20 @@ async function askJev($: EngineInterface, body: JevRequest, purpose: EngineTrace
   return result
 }
 
+/** Choice ids and probability keys with the API key removed, so a trace cannot store it. */
+function hideAnswers(answers: Record<string, ChoiceAnswer>, hide: (text: string) => string): Record<string, ChoiceAnswer> {
+  const out: Record<string, ChoiceAnswer> = {}
+  for (const [id, a] of Object.entries(answers)) {
+    const probabilities: Record<string, number> = {}
+    for (const [k, p] of Object.entries(a.probabilities)) probabilities[hide(k)] = p
+    out[hide(id)] = { choice: hide(a.choice), confidence: a.confidence, probabilities }
+  }
+  return out
+}
+
 /**
- * Gemini Decision 1, shadow only. Does nothing the caller can store when `GEMINI_API_KEY` is unset:
- * the caller checks the key first. The key is never written into the trace or the body.
+ * Gemini Decision 1, shadow only. Writes a pending trace, then returns the settled one.
+ * The caller stores that settled trace. A request that loses the timeout race must not write again.
  */
 async function askGemini($: EngineInterface, body: GeminiRequest, redacted: number): Promise<GeminiResult> {
   const started = await $.clock.now()
@@ -129,7 +141,7 @@ async function askGemini($: EngineInterface, body: GeminiRequest, redacted: numb
   await $.store.set(LAST_GEMINI_KEY, { ...trace, note: '요청 보냄, 응답 대기 중' }).catch(() => undefined)
   let result: GeminiResult
   if (!key) {
-    result = { ok: false, failure: 'error', note: 'GEMINI_API_KEY 없음', ms: 0 }
+    result = { ok: false, failure: 'error', note: 'GEMINI_API_KEY 없음', ms: 0, trace }
   } else {
     try {
       const res = await $.http.fetch(GEMINI_URL, {
@@ -149,13 +161,13 @@ async function askGemini($: EngineInterface, body: GeminiRequest, redacted: numb
       const outcome = res.ok ? choiceCallOutcome(parsed) : null
       if (!res.ok || !outcome || 'failure' in outcome) trace.bodyHead = hide(res.text.slice(0, 300))
       result = !res.ok
-        ? { ok: false, failure: 'error', note: `HTTP ${res.status}`, ms: 0 }
+        ? { ok: false, failure: 'error', note: `HTTP ${res.status}`, ms: 0, trace }
         : outcome && !('failure' in outcome)
-          ? { ok: true, answers: outcome.answers, ms: 0 }
-          : { ok: false, failure: 'error', note: outcome && 'failure' in outcome ? outcome.failure : '응답 형식이 다름', ms: 0 }
+          ? { ok: true, answers: hideAnswers(outcome.answers, hide), ms: 0, trace }
+          : { ok: false, failure: 'error', note: hide(outcome && 'failure' in outcome ? outcome.failure : '응답 형식이 다름'), ms: 0, trace }
     } catch (err) {
       const raw = err instanceof Error ? err.message.slice(0, 120) : 'request failed'
-      result = { ok: false, failure: 'error', note: hide(raw), ms: 0 }
+      result = { ok: false, failure: 'error', note: hide(raw), ms: 0, trace }
     }
   }
   const ms = (await $.clock.now()) - started
@@ -163,9 +175,13 @@ async function askGemini($: EngineInterface, body: GeminiRequest, redacted: numb
   trace.ms = ms
   if (result.ok) trace.answers = result.answers
   else trace.note = result.note
+  return result
+}
+
+/** The trace that matches the result the card kept. A late response does not call this. */
+async function commitGeminiTrace($: EngineInterface, trace: EngineTrace): Promise<void> {
   await $.store.set(LAST_GEMINI_KEY, trace).catch(() => undefined)
   await writeEngineTrace($, 'last-gemini.json', LAST_GEMINI_KEY, trace)
-  return result
 }
 
 /**
@@ -280,30 +296,68 @@ async function applyJev($: EngineInterface, c: Card, r: JevResult): Promise<void
 /**
  * Gemini's shadow rank, or null when `GEMINI_API_KEY` is unset (no request, no trace).
  * Its timeout is its own: a hang here does not change the Jev result already applied.
+ * The trace written here is the one the card kept. askGemini does not write again if it loses the race.
  */
 async function geminiOutcome($: EngineInterface, c: Card): Promise<GeminiShadow | null> {
-  const key = await $.env.get('GEMINI_API_KEY')
-  if (!key) return null
-  const started = await $.clock.now()
-  const built = geminiDecisionRequest(c)
-  const asked: Promise<GeminiResult> = askGemini($, built.request, built.redacted).catch((err: unknown) => ({
-    ok: false as const,
-    failure: 'error' as const,
-    note: redactSecret(err instanceof Error ? err.message.slice(0, 120) : 'request failed', key),
-    ms: 0,
-  }))
-  const timedOut: Promise<GeminiResult> = $.clock.sleep(JEV_TIMEOUT_MS).then(async () => ({
-    ok: false as const,
-    failure: 'error' as const,
-    note: `Gemini 응답 시간 초과 (${JEV_TIMEOUT_MS / 1000}초)`,
-    ms: (await $.clock.now()) - started,
-  }))
-  const r = await Promise.race([asked, timedOut])
-  return geminiShadowFromAnswers(c, r.ok ? r.answers : null, r.ms, r.ok ? null : r.note)
+  try {
+    const key = await $.env.get('GEMINI_API_KEY')
+    if (!key) return null
+    const started = await $.clock.now()
+    const built = geminiDecisionRequest(c)
+    const blank = (note: string, ms: number): EngineTrace => ({
+      at: started,
+      purpose: 'decisions',
+      hasKey: true,
+      ms,
+      status: null,
+      note,
+      bodyHead: null,
+      answers: null,
+      redacted: built.redacted,
+    })
+    const asked: Promise<GeminiResult> = askGemini($, built.request, built.redacted).catch((err: unknown) => {
+      const note = redactSecret(err instanceof Error ? err.message.slice(0, 120) : 'request failed', key)
+      return { ok: false as const, failure: 'error' as const, note, ms: 0, trace: blank(note, 0) }
+    })
+    const timedOut: Promise<GeminiResult> = $.clock.sleep(JEV_TIMEOUT_MS).then(async () => {
+      const ms = (await $.clock.now()) - started
+      const note = `Gemini 응답 시간 초과 (${JEV_TIMEOUT_MS / 1000}초)`
+      return { ok: false as const, failure: 'error' as const, note, ms, trace: blank(note, ms) }
+    })
+    const r = await Promise.race([asked, timedOut])
+    await commitGeminiTrace($, { ...r.trace, ms: r.ms, note: r.ok ? null : r.note, answers: r.ok ? r.answers : null })
+    return geminiShadowFromAnswers(c, r.ok ? r.answers : null, r.ms, r.ok ? null : r.note)
+  } catch (err) {
+    const note = err instanceof Error ? err.message.slice(0, 120) : 'request failed'
+    const shadow = geminiShadowFromAnswers(c, null, 0, note)
+    let at = 0
+    try {
+      at = await $.clock.now()
+    } catch {
+      at = 0
+    }
+    await commitGeminiTrace($, {
+      at,
+      purpose: 'decisions',
+      hasKey: false,
+      ms: 0,
+      status: null,
+      note,
+      bodyHead: null,
+      answers: null,
+    }).catch(() => undefined)
+    return shadow
+  }
 }
 
 async function applyGemini($: EngineInterface, c: Card, gemini: GeminiShadow): Promise<void> {
   await update($, card, cur => (cur && cur.cardAt === c.cardAt ? { ...cur, gemini } : cur))
+  const stored = await $.store.get(PICKS_KEY)
+  if (!Array.isArray(stored)) return
+  const next = attachGeminiToPicks(stored, c.cardAt, c.decisions.map(d => d.question), gemini)
+  if (next.every((row, i) => row === stored[i])) return
+  await $.store.set(PICKS_KEY, next)
+  await writeOutside($, 'picks.json', next)
 }
 
 async function rank($: EngineInterface, c: Card): Promise<void> {

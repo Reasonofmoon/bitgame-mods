@@ -50,6 +50,8 @@ type WorldOpts = {
   fetchHangs?: boolean
   /** Gemini never answers. */
   geminiHangs?: boolean
+  /** Reading GEMINI_API_KEY rejects. */
+  geminiEnvThrows?: boolean
   geminiStatus?: number
   geminiAnswers?: Record<string, unknown>
   geminiText?: string
@@ -59,23 +61,23 @@ type WorldOpts = {
 type GeminiCall = { url: string; headers: Record<string, string> | null; body: unknown }
 
 function world(on: On, opts: WorldOpts = {}) {
-  mock.store(on)
+  const saved: Record<string, unknown> = {}
+  on('store.get', (_, e) => ({ value: saved[e.key] }))
+  on('store.set', (_, e) => {
+    saved[e.key] = e.value
+    return { value: undefined }
+  })
   const clock = mock.clock(on)
   const suggested: string[] = []
   const jevBodies: unknown[] = []
   const geminiCalls: GeminiCall[] = []
   const forks: string[] = []
   const written: Array<{ path: string; text: string }> = []
-  on('env.get', (_, e) => ({
-    value:
-      e.name === 'TYPESAFE_API_KEY'
-        ? opts.key
-        : e.name === 'GEMINI_API_KEY'
-          ? opts.geminiKey
-          : e.name === 'USERPROFILE'
-            ? 'C:/Users/t'
-            : undefined,
-  }))
+  on('env.get', (_, e) => {
+    if (e.name === 'GEMINI_API_KEY' && opts.geminiEnvThrows) return Promise.reject(new Error('env down'))
+    const value = e.name === 'TYPESAFE_API_KEY' ? opts.key : e.name === 'GEMINI_API_KEY' ? opts.geminiKey : e.name === 'USERPROFILE' ? 'C:/Users/t' : undefined
+    return { value }
+  })
   on('fs.write', (_, e) => {
     written.push({ path: e.path, text: e.text })
     return { value: undefined }
@@ -92,7 +94,7 @@ function world(on: On, opts: WorldOpts = {}) {
         opts.geminiText ??
         JSON.stringify({
           answers: opts.geminiAnswers ?? {
-            d0: { type: 'choice', choice: 'A', confidence: 0.42, probabilities: { A: 0.22, B: 0.78 } },
+            d0: { type: 'choice', choice: 'A', confidence: 0.42, probabilities: { A: 0.81, B: 0.19 } },
           },
         })
       return { value: { status, ok: status < 300, headers: {}, text } }
@@ -118,7 +120,7 @@ function world(on: On, opts: WorldOpts = {}) {
     const { Text } = $.ui.resolve(e)
     return h(Text, { dimColor: true }, 'engine') as RenderElement
   })
-  return { suggested, jevBodies, geminiCalls, forks, clock, written }
+  return { suggested, jevBodies, geminiCalls, forks, clock, written, saved }
 }
 
 async function finish($: Engine, answer = ANSWER) {
@@ -352,28 +354,30 @@ test('Gemini ranks in the shadow: Jev still orders the buttons, the pick records
   expect(w.jevBodies).toHaveLength(1)
   expect(w.geminiCalls).toHaveLength(1)
   const call = w.geminiCalls[0]!
-  expect(call.url).toBe(GEMINI_URL)
+  expect(call.url).toBe('https://generativelanguage.googleapis.com/v1beta/decisions')
+  expect(GEMINI_URL).toBe('https://generativelanguage.googleapis.com/v1beta/decisions')
   expect(call.headers?.['x-goog-api-key']).toBe(GEMINI_KEY)
   expect(call.headers?.Authorization).toBeUndefined()
   const body = call.body as { model: string; input: Array<{ type: string; text: string }>; questions: unknown }
   const jev = w.jevBodies[0] as { state: string; questions: unknown }
-  expect(body.model).toBe(GEMINI_MODEL)
+  expect(body.model).toBe('gemini-decision-1')
+  expect(GEMINI_MODEL).toBe('gemini-decision-1')
   expect(body.input).toEqual([{ type: 'text', text: jev.state }])
   expect(body.questions).toEqual(jev.questions)
   expect(JSON.stringify(body).includes(GEMINI_KEY)).toBe(false)
 
   const ui = await $.ui.mount({ plugin: 'game-choice', surface: 'terminal', ...BAND })
-  // 70/30 is Jev. Gemini's 78/22 must not move or relabel the buttons.
+  // 70/30 is Jev (B first). Gemini's 81/19 would put A first. The buttons stay on Jev.
   expect(await labels(ui)).toEqual(['닫기', '나중에 70%', '지금 실행 30%'])
   await ui.press({ key: 'd0-o1' })
   const [row] = picksOf(w)
   expect(row?.rank).toBe('jev')
   expect(row?.top).toBe(1)
-  expect(row?.gemini).toEqual({ p: [0.22, 0.78], choice: 0, confidence: 0.42, ms: row?.gemini?.ms, failure: null })
+  expect(row?.gemini).toEqual({ p: [0.81, 0.19], choice: 0, confidence: 0.42, ms: row?.gemini?.ms, failure: null })
   expect(typeof row?.gemini?.ms).toBe('number')
 
   const trace = w.written.find(f => f.path.replace(/\\/g, '/').endsWith('/.claude/game-choice/last-gemini.json'))
-  expect(trace?.text.includes('"A": 0.22')).toBe(true)
+  expect(trace?.text.includes('"A": 0.81')).toBe(true)
   expect(trace?.text.includes(GEMINI_KEY)).toBe(false)
   const text = (await $.command.run(CHOICE_CMD)).text
   expect(text).toContain('마지막 Gemini 호출: 결정 순위')
@@ -408,6 +412,37 @@ test('a Gemini error body that echoes the key is stored without it', async ($, o
   expect(trace?.text.includes(GEMINI_KEY)).toBe(false)
   expect(trace?.text.includes('…')).toBe(true)
   expect(trace?.text.includes('HTTP 400') || trace?.text.includes('"status": 400')).toBe(true)
+  expect(JSON.stringify(w.saved.lastGemini).includes(GEMINI_KEY)).toBe(false)
+})
+
+test('a Gemini choice that echoes the key is not stored on the trace or the pick', { options: { shadowMode: false } }, async ($, on) => {
+  const w = world(on, {
+    key: 'k',
+    geminiKey: GEMINI_KEY,
+    geminiAnswers: { d0: { type: 'choice', choice: GEMINI_KEY, confidence: 0.2, probabilities: { A: 0.4, B: 0.6 } } },
+  })
+  await finish($)
+  const ui = await $.ui.mount({ plugin: 'game-choice', surface: 'terminal', ...BAND })
+  await ui.press({ key: 'd0-o0' })
+  const [row] = picksOf(w)
+  expect(JSON.stringify(row).includes(GEMINI_KEY)).toBe(false)
+  expect(row?.gemini?.failure).toContain('…')
+  const trace = w.written.filter(f => f.path.replace(/\\/g, '/').endsWith('/last-gemini.json')).at(-1)
+  expect(trace?.text.includes(GEMINI_KEY)).toBe(false)
+  expect(JSON.stringify(w.saved.lastGemini).includes(GEMINI_KEY)).toBe(false)
+  await ui.unmount()
+})
+
+test('a Gemini env lookup failure is recorded and Jev still ranks', { options: { shadowMode: false } }, async ($, on) => {
+  world(on, { key: 'k', geminiEnvThrows: true })
+  await finish($)
+  const ui = await $.ui.mount({ plugin: 'game-choice', surface: 'terminal', ...BAND })
+  expect(await labels(ui)).toEqual(['닫기', '나중에 70%', '지금 실행 30%'])
+  const text = (await $.command.run(CHOICE_CMD)).text
+  // The kit turns a rejected env.get into "no implementation"; the card must still record that failure.
+  expect(text).toContain('Gemini 섀도: 실패')
+  expect(text).toContain('실패:')
+  await ui.unmount()
 })
 
 test('a Gemini call that never returns times out on its own and Jev still ranks', { options: { shadowMode: false } }, async ($, on) => {
@@ -422,6 +457,9 @@ test('a Gemini call that never returns times out on its own and Jev still ranks'
   expect(row?.rank).toBe('jev')
   expect(row?.gemini?.failure).toContain('시간 초과')
   expect(row?.gemini?.choice).toBe(null)
+  const trace = w.written.filter(f => f.path.replace(/\\/g, '/').endsWith('/last-gemini.json')).at(-1)
+  expect(trace?.text).toContain('시간 초과')
+  expect(trace?.text.includes('응답 대기 중')).toBe(false)
   const text = (await $.command.run(CHOICE_CMD)).text
   expect(text).toContain('Gemini 섀도: 실패')
   expect(text).toContain('시간 초과')
