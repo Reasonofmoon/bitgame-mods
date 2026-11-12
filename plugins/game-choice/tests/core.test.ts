@@ -1,6 +1,7 @@
 import { expect, test } from 'claude-code/testing'
 
 import { summarizePicks } from '../scripts/report.mjs'
+import { redactSecrets } from '../hooks/secrets'
 
 import {
   GEMINI_MODEL,
@@ -14,6 +15,7 @@ import {
   geminiDecisionRequest,
   geminiPick,
   geminiShadowFromAnswers,
+  redactSummary,
   parseChoiceAnswers,
   parseStatusSummary,
   pickSkill,
@@ -193,9 +195,10 @@ test('Gemini request reuses Jev questions as one text block; ranks map back by o
   if (!s) throw new Error('no summary')
   const jev = decisionRequest(s)
   const gemini = geminiDecisionRequest(s)
-  expect(gemini.model).toBe(GEMINI_MODEL)
-  expect(gemini.input).toEqual([{ type: 'text', text: jev.state }])
-  expect(gemini.questions).toEqual(jev.questions)
+  expect(gemini.redacted).toBe(0)
+  expect(gemini.request.model).toBe(GEMINI_MODEL)
+  expect(gemini.request.input).toEqual([{ type: 'text', text: jev.state }])
+  expect(gemini.request.questions).toEqual(jev.questions)
 
   const outcome = choiceCallOutcome({
     answers: {
@@ -225,6 +228,55 @@ test('a blocked Gemini body and a secret in an error are not treated as a rank',
   const secret = ['AIza', 'not-real', '0000'].join('')
   expect(redactSecret(`header ${secret} leaked`, secret)).toBe('header … leaked')
   expect(redactSecret('plain', '')).toBe('plain')
+})
+
+test('Gemini redacts secret-shaped values from the summary and the options, and counts each once', () => {
+  // Assembled here so the file holds no secret-shaped literal.
+  const anthropic = ['sk', 'ant', 'api03', 'A'.repeat(40)].join('-')
+  const aws = 'AS' + 'IA' + 'ABCDEFGHIJKLMNOP'
+  const assigned = 'API_KEY=' + ['s3cr', 'etvalue'].join('')
+  const overlapped = redactSecrets(`token ${anthropic} end`)
+  expect(overlapped.count).toBe(1)
+  expect(overlapped.text.includes(anthropic)).toBe(false)
+  expect(overlapped.text).toBe('token [redacted] end')
+  expect(redactSecrets(`aws ${aws}`).count).toBe(1)
+  expect(redactSecrets(`keep ${assigned}`).text).toBe('keep [redacted]')
+  expect(redactSecrets('ordinary sentence').count).toBe(0)
+
+  const raw = [
+    '[상태 요약]',
+    '1. 지금까지 한 일:',
+    `   - 발급된 키 ${anthropic}`,
+    '2. 아직 남은 일:',
+    `   - 클라우드 키 ${aws}`,
+    '3. 내가 결정해야 할 것:',
+    '   - Q: 키를 어디에 둘까요?',
+    `     - 환경변수 => ${assigned} 는 환경 변수로만 읽어라.`,
+    '     - 파일 => 보통 문장으로 남겨라.',
+    '4. 다음에 이어서 할 때 붙여넣을 프롬프트:',
+    '   - 키 정리를 이어서 하라.',
+    '5. 산출물/파일/링크:',
+    '   - (해당 없음)',
+  ].join('\n')
+  const summary = parseStatusSummary(raw)
+  if (!summary) throw new Error('no summary')
+  expect(redactSecrets(summary.done[0] ?? '').count).toBe(1)
+  expect(redactSecrets(summary.todo[0] ?? '').count).toBe(1)
+  expect(redactSecrets(summary.decisions[0]?.options[0]?.append ?? '').count).toBe(1)
+  const clean = redactSummary(summary)
+  expect(clean.redacted).toBe(3)
+  expect(JSON.stringify(clean.summary).includes(anthropic)).toBe(false)
+  expect(JSON.stringify(clean.summary).includes(aws)).toBe(false)
+  expect(JSON.stringify(clean.summary).includes(assigned)).toBe(false)
+  const sent = geminiDecisionRequest(summary)
+  expect(sent.redacted).toBe(3)
+  const body = JSON.stringify(sent.request)
+  expect(body.includes(anthropic)).toBe(false)
+  expect(body.includes(aws)).toBe(false)
+  expect(body.includes(assigned)).toBe(false)
+  expect(body.includes('[redacted]')).toBe(true)
+  // Jev is not filtered.
+  expect(decisionRequest(summary).state.includes(anthropic)).toBe(true)
 })
 
 test('analyze-picks reports Gemini hit rate, calibration and agreement beside Jev', () => {

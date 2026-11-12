@@ -3,6 +3,7 @@
 // and the Jev (TypeSafe System One) and Gemini Decisions request and response shapes.
 // No engine calls here.
 import type { Decision, DecisionOption, GeminiPick, GeminiShadow, ShadowVerdict, SkillCandidate, SkillHint, Summary } from '../types'
+import { redactSecrets } from './secrets'
 
 const SUMMARY_TAG = '[상태 요약]'
 
@@ -208,13 +209,43 @@ export type GeminiRequest = {
 }
 
 /**
- * The same Choice questions Jev is asked, against the same state text, as one text content block.
- * Option ids are A, B, C…, which is already alphabetical, so the API's alphabetical option order
- * matches the order the buttons were written in.
+ * The summary Gemini is allowed to see: items 1, 2 and 4, the question, and each option's
+ * label and sentence, with secret-shaped values removed. Jev keeps the original summary.
  */
-export function geminiDecisionRequest(summary: Summary): GeminiRequest {
-  const req = decisionRequest(summary)
-  return { model: GEMINI_MODEL, input: [{ type: 'text', text: req.state }], questions: req.questions }
+export function redactSummary(summary: Summary): { summary: Summary; redacted: number } {
+  let redacted = 0
+  const scrub = (text: string): string => {
+    const next = redactSecrets(text)
+    redacted += next.count
+    return next.text
+  }
+  // Scrub before reading `redacted`: an object literal evaluates the count field first.
+  const cleaned: Summary = {
+    ...summary,
+    resume: scrub(summary.resume),
+    done: summary.done.map(scrub),
+    todo: summary.todo.map(scrub),
+    decisions: summary.decisions.map(d => ({
+      ...d,
+      question: scrub(d.question),
+      options: d.options.map(o => ({ ...o, label: scrub(o.label), append: scrub(o.append) })),
+    })),
+  }
+  return { redacted, summary: cleaned }
+}
+
+/**
+ * The same Choice questions Jev is asked, against the same state text, as one text content block,
+ * after secret-shaped values are removed. Option ids are A, B, C…, already alphabetical.
+ * `redacted` is how many values were removed. It is not part of the request body.
+ */
+export function geminiDecisionRequest(summary: Summary): { request: GeminiRequest; redacted: number } {
+  const clean = redactSummary(summary)
+  const req = decisionRequest(clean.summary)
+  return {
+    redacted: clean.redacted,
+    request: { model: GEMINI_MODEL, input: [{ type: 'text', text: req.state }], questions: req.questions },
+  }
 }
 
 /** `prompt_feedback.block_reason` when the REST reference says the input was blocked and answers are empty. */

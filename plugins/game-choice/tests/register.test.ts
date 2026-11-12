@@ -297,6 +297,45 @@ test('shadow mode stays Claude order when Gemini disagrees with Jev', async ($, 
   await ui.unmount()
 })
 
+test('secret-shaped values are removed before the Gemini call and counted, while Jev still receives them', { options: { shadowMode: false } }, async ($, on) => {
+  const anthropic = ['sk', 'ant', 'api03', 'B'.repeat(40)].join('-')
+  const assigned = 'api_key=' + ['n0t', 'aReal', 'Value'].join('')
+  const answer = [
+    '[상태 요약]',
+    '1. 지금까지 한 일:',
+    `   - 받은 키 ${anthropic}`,
+    '3. 내가 결정해야 할 것:',
+    '   - Q: 키를 어디에 둘까요?',
+    `     - 환경변수 => ${assigned} 는 환경 변수로만 읽어라.`,
+    '     - 그대로 => 문장만 남겨라.',
+    '4. 다음에 이어서 할 때 붙여넣을 프롬프트:',
+    '   - 키 정리를 이어서 하라.',
+    '5. 산출물/파일/링크:',
+    '   - (해당 없음)',
+  ].join('\n')
+  const w = world(on, { key: 'k', geminiKey: GEMINI_KEY })
+  await finish($, answer)
+  const jev = JSON.stringify(w.jevBodies[0])
+  expect(jev.includes(anthropic)).toBe(true)
+  expect(jev.includes(assigned)).toBe(true)
+  const sent = JSON.stringify(w.geminiCalls[0]?.body)
+  expect(sent.includes(anthropic)).toBe(false)
+  expect(sent.includes(assigned)).toBe(false)
+  expect(sent.includes('[redacted]')).toBe(true)
+  expect(sent.includes('"redacted"')).toBe(false)
+  const trace = w.written.filter(f => f.path.replace(/\\/g, '/').endsWith('/last-gemini.json')).at(-1)
+  expect(trace?.text.includes(anthropic)).toBe(false)
+  expect(trace?.text.includes(assigned)).toBe(false)
+  expect(trace?.text.includes('"redacted": 2')).toBe(true)
+  const text = (await $.command.run(CHOICE_CMD)).text
+  expect(text).toContain('가린 비밀 값: 2개')
+  expect(text.includes(anthropic)).toBe(false)
+  expect(text.includes(assigned)).toBe(false)
+  const ui = await $.ui.mount({ plugin: 'game-choice', surface: 'desktop', ...BAND })
+  expect(await labels(ui)).toEqual(['닫기', '그대로 70%', '환경변수 30%'])
+  await ui.unmount()
+})
+
 test('without a Gemini key nothing is sent to Google and /choice says so', async ($, on) => {
   const w = world(on, { key: 'k' })
   await finish($)

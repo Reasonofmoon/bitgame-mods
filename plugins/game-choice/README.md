@@ -34,7 +34,7 @@ Part of the [GAME MODE pack](../../README.md). Requires Claude Code 2.1.287+; bu
 
 The decisions are sent to **Jev** (TypeSafe System One, `api.typesafe.ai`) with items 1, 2 and 4 as context (at most 3000 characters). Jev returns each option's probability and its confidence. Without `TYPESAFE_API_KEY`, on an HTTP error, or after 8 seconds, the buttons keep Claude's order and the header says why.
 
-**Gemini Decision 1** (`gemini-decision-1`) is a second engine in the shadow, and only when `GEMINI_API_KEY` is set. It is asked the same choice questions over the same state, as one text block, at `POST https://generativelanguage.googleapis.com/v1beta/decisions` (`x-goog-api-key`). It has the same 8-second cap, on its own clock: a Gemini error or timeout does not change Jev's order, the odds on the buttons, or the shadow verdict, and nothing is picked or sent on Gemini's answer. The turn waits for the slower of the two calls. Without the key, no request is made and timing stays as it was.
+**Gemini Decision 1** (`gemini-decision-1`) is a second engine in the shadow, and only when `GEMINI_API_KEY` is set. It is asked the same choice questions over the same state, as one text block, at `POST https://generativelanguage.googleapis.com/v1beta/decisions` (`x-goog-api-key`). Before that text leaves, values that look like secrets (the shapes game-trap-guard and game-spell-check already match: API keys, tokens, private-key headers, and `api_key=` / `password=` assignments) are replaced with `[redacted]`. `/choice` and `last-gemini.json` record how many values were removed, never the values. Jev still receives the original text. A Gemini error or timeout does not change Jev's order, the odds on the buttons, or the shadow verdict, and nothing is picked or sent on Gemini's answer. Each call gives up after 8 seconds on its own clock. The turn waits for the slower of the two. Without the key, no request is made and timing stays as it was.
 
 **Shadow mode** (on by default) keeps Jev's odds and order off the buttons, so the pick is yours, and records what an auto-approver *would* have picked: every decision at ≥ 90% with confidence ≥ 80%, and no option naming a risky act (commit, push, merge, deploy, delete, publish, send, cost, settings — in Korean or English). Nothing is ever picked or sent on its strength. The bars stay Jev's; Gemini is only a comparison.
 
@@ -65,18 +65,18 @@ Set `TYPESAFE_API_KEY` in the environment Claude Code starts from for Jev rankin
 | `skillThreshold` (`50`) | show a skill only at this probability (%) or above, 10–95 |
 | `skillSuggest` (`true`) | send drafts to Jev to match them against your skills; `false` sends no drafts |
 | `GEMINI_API_KEY` | environment variable, not a plugin setting: when set, Gemini Decision 1 ranks the same decisions in the shadow and the pick records it; unset, Gemini is not called |
-| `/choice` | the last Jev call and the last Gemini call (purpose, time, key present, HTTP status, failure, top odds) and the current card's state, shadow verdict, and Gemini shadow line |
+| `/choice` | the last Jev call and the last Gemini call (purpose, time, key present, HTTP status, failure, top odds, how many secret values were removed) and the current card's state, shadow verdict, and Gemini shadow line |
 
 The last Jev call is written to `~/.claude/game-choice/last-jev.json`, and the last Gemini call to `last-gemini.json` (never either key).
 
 ## Known limits
 
 - **Drafts leave the machine.** With `skillSuggest` on and a key set, what you type is sent to typesafe.ai; turn it off for private work.
-- **The decision card leaves the machine too.** Jev already receives items 1, 2 and 4 (at most 3000 characters) and each option's label and sentence. With `GEMINI_API_KEY` set, that same text is also sent to Google. Skill drafts are not sent to Gemini. Trap-guard-style secret filtering is not applied to either payload: a secret that was written into the status summary is sent as-is. The keys themselves are not logged or stored.
+- **The decision card leaves the machine too.** Jev receives items 1, 2 and 4 (at most 3000 characters) and each option's label and sentence, with no secret filtering. With `GEMINI_API_KEY` set, that same text is sent to Google only after secret-shaped values are replaced with `[redacted]`. A value that matches neither plugin's shapes still goes through. Skill drafts are not sent to Gemini. Neither API key is logged or stored.
 - It reads only the `[상태 요약]` format above; another heading or numbering makes no card.
 - The suggestion cannot show while a turn runs; it appears once the prompt box is free.
 - The engine's own next-prompt suggestion is replaced while a card is up.
 
 ## 한국어
 
-답변 끝의 `[상태 요약]`에서 4번 재개 프롬프트를 입력창의 흐린 제안(Tab)으로 띄우고, 3번 결정을 버튼으로 보여 줍니다. 고를 때마다 그 문장이 제안에 붙고, 다 고르면 포크가 하나의 단락으로 다듬어 줍니다. Jev(typesafe.ai)가 뒤에서 옵션 확률을 매기며, 섀도 모드(기본)에서는 확률을 숨기고 "자동이었다면 무엇을 골랐을지"만 `~/.claude/game-choice/picks.json`에 기록합니다. `GEMINI_API_KEY`가 있으면 Gemini Decision 1(`gemini-decision-1`)도 같은 질문을 섀도로 판정하고, 옵션별 확률·선택·확신도·지연·실패 이유를 Jev 옆에 기록합니다. 버튼 순서와 자동 판정은 그대로 Jev입니다. 키가 없으면 Gemini는 호출하지 않습니다. 입력 중에는 맞는 스킬을 제안합니다(초안이 typesafe.ai로 전송되므로 원치 않으면 `skillSuggest`를 끄세요). 상태 요약에 비밀이 적혀 있으면 Jev와, 키가 있을 때 Google에도 그대로 전송됩니다. 트랩 가드식 비밀 필터는 이 전송에 적용되지 않습니다.
+답변 끝의 `[상태 요약]`에서 4번 재개 프롬프트를 입력창의 흐린 제안(Tab)으로 띄우고, 3번 결정을 버튼으로 보여 줍니다. 고를 때마다 그 문장이 제안에 붙고, 다 고르면 포크가 하나의 단락으로 다듬어 줍니다. Jev(typesafe.ai)가 뒤에서 옵션 확률을 매기며, 섀도 모드(기본)에서는 확률을 숨기고 "자동이었다면 무엇을 골랐을지"만 `~/.claude/game-choice/picks.json`에 기록합니다. `GEMINI_API_KEY`가 있으면 Gemini Decision 1(`gemini-decision-1`)도 같은 질문을 섀도로 판정하고, 옵션별 확률·선택·확신도·지연·실패 이유를 Jev 옆에 기록합니다. 버튼 순서와 자동 판정은 그대로 Jev입니다. 키가 없으면 Gemini는 호출하지 않습니다. 입력 중에는 맞는 스킬을 제안합니다(초안이 typesafe.ai로 전송되므로 원치 않으면 `skillSuggest`를 끄세요). 상태 요약에 비밀이 적혀 있으면 Jev에는 그대로 가고, Google로 보내기 전에는 트랩 가드와 스펠 체크가 알아보는 비밀 값을 `[redacted]`로 바꾼 뒤 개수만 기록합니다.

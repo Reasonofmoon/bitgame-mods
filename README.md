@@ -235,7 +235,7 @@ If a guard refuses an ordinary command, or misses a case its README lists, it is
 - **Sound:** Windows plays through PowerShell's `SoundPlayer` (first cue about a second late while PowerShell starts); Linux needs `paplay` (PulseAudio or PipeWire) or `aplay`.
 - **Windows**: paths are compared without regard to case or slash direction (`C:\`, `c:/`, Git Bash `/c/`); tests cover them.
 - **Headless runs** (`claude -p`) draw nothing; the guards still refuse.
-- **Choice** reads only the `[상태 요약]` format (its README shows it). Jev ranking and skill suggestions need `TYPESAFE_API_KEY` and send the summary, or the draft you are typing, to typesafe.ai; set `skillSuggest` off for private work. Without a key the buttons keep Claude's order. `GEMINI_API_KEY` also sends that same decision text (not the skill draft) to Google as a shadow rank. Neither call is scrubbed by trap-guard.
+- **Choice** reads only the `[상태 요약]` format (its README shows it). Jev ranking and skill suggestions need `TYPESAFE_API_KEY` and send the summary, or the draft you are typing, to typesafe.ai; set `skillSuggest` off for private work. Without a key the buttons keep Claude's order. `GEMINI_API_KEY` sends that same decision text (not the skill draft) to Google as a shadow rank, after secret-shaped values are replaced. Jev's copy is not scrubbed.
 
 ---
 

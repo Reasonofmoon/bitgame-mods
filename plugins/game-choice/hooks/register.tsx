@@ -67,6 +67,8 @@ type EngineTrace = {
   answers: Record<string, ChoiceAnswer> | null
   /** Why the mirror file could not be written, when it could not. */
   fileError?: string
+  /** Secret-shaped values removed from the Gemini request. Absent on a Jev trace. Never the values. */
+  redacted?: number
 }
 
 async function askJev($: EngineInterface, body: JevRequest, purpose: EngineTrace['purpose']): Promise<JevResult> {
@@ -109,7 +111,7 @@ async function askJev($: EngineInterface, body: JevRequest, purpose: EngineTrace
  * Gemini Decision 1, shadow only. Does nothing the caller can store when `GEMINI_API_KEY` is unset:
  * the caller checks the key first. The key is never written into the trace or the body.
  */
-async function askGemini($: EngineInterface, body: GeminiRequest): Promise<GeminiResult> {
+async function askGemini($: EngineInterface, body: GeminiRequest, redacted: number): Promise<GeminiResult> {
   const started = await $.clock.now()
   const key = (await $.env.get('GEMINI_API_KEY')) ?? ''
   const hide = (text: string): string => redactSecret(text, key)
@@ -122,6 +124,7 @@ async function askGemini($: EngineInterface, body: GeminiRequest): Promise<Gemin
     note: null,
     bodyHead: null,
     answers: null,
+    redacted,
   }
   await $.store.set(LAST_GEMINI_KEY, { ...trace, note: '요청 보냄, 응답 대기 중' }).catch(() => undefined)
   let result: GeminiResult
@@ -199,6 +202,7 @@ function describeTrace(engine: 'Jev' | 'Gemini', keyName: string, absent: string
   if (t.note) lines.push(`실패: ${t.note}`)
   if (t.bodyHead) lines.push(`응답 앞부분: ${t.bodyHead}`)
   if (t.fileError) lines.push(`기록 파일 쓰기 실패: ${t.fileError}`)
+  if (typeof t.redacted === 'number') lines.push(`가린 비밀 값: ${t.redacted}개`)
   for (const [id, a] of Object.entries(t.answers ?? {})) {
     const probs = Object.entries(a.probabilities)
       .sort((x, y) => y[1] - x[1])
@@ -281,7 +285,8 @@ async function geminiOutcome($: EngineInterface, c: Card): Promise<GeminiShadow 
   const key = await $.env.get('GEMINI_API_KEY')
   if (!key) return null
   const started = await $.clock.now()
-  const asked: Promise<GeminiResult> = askGemini($, geminiDecisionRequest(c)).catch((err: unknown) => ({
+  const built = geminiDecisionRequest(c)
+  const asked: Promise<GeminiResult> = askGemini($, built.request, built.redacted).catch((err: unknown) => ({
     ok: false as const,
     failure: 'error' as const,
     note: redactSecret(err instanceof Error ? err.message.slice(0, 120) : 'request failed', key),
