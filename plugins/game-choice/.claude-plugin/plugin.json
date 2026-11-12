@@ -1,8 +1,8 @@
 {
   "name": "game-choice",
   "displayName": "GAME MODE · Choice",
-  "version": "0.3.0",
-  "description": "The status summary's resume prompt as the prompt box's suggestion (Tab), its decisions as buttons that refine it, Jev-ranked in the background; skill suggestions while typing",
+  "version": "0.4.0",
+  "description": "The status summary's resume prompt as the prompt box's suggestion (Tab), its decisions as buttons that refine it, Jev-ranked in the background, with an optional Gemini Decision 1 shadow rank; skill suggestions while typing",
   "author": {
     "name": "Reason of Moon",
     "url": "https://github.com/Reasonofmoon"

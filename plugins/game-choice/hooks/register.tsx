@@ -3,24 +3,31 @@
 import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register } from 'claude-code'
 
-import type { Card, SkillCandidate, SkillHint } from '../types'
+import type { Card, GeminiShadow, SkillCandidate, SkillHint } from '../types'
 import {
+  GEMINI_URL,
   JEV_URL,
   allPicked,
   applyDecisionRanks,
+  attachGeminiToPicks,
+  choiceCallOutcome,
   composePrompt,
   decisionRequest,
+  geminiDecisionRequest,
+  geminiPick,
+  geminiShadowFromAnswers,
   parseChoiceAnswers,
   parseStatusSummary,
   pct,
   pickSkill,
   rankedOptions,
+  redactSecret,
   shadowVerdict,
   shortlistSkills,
   shouldClassify,
   skillRequest,
 } from './core'
-import type { ChoiceAnswer, JevRequest } from './core'
+import type { ChoiceAnswer, GeminiRequest, JevRequest } from './core'
 
 const card = atom({ plugin: 'game-choice', key: 'card' } as const, null)
 const skill = atom({ plugin: 'game-choice', key: 'skill' } as const, null)
@@ -41,10 +48,15 @@ type JevResult =
   | { ok: true; answers: Record<string, ChoiceAnswer> }
   | { ok: false; failure: 'no-key' | 'error'; note: string }
 
-const LAST_JEV_KEY = 'lastJev'
+type GeminiResult =
+  | { ok: true; answers: Record<string, ChoiceAnswer>; ms: number; trace: EngineTrace }
+  | { ok: false; failure: 'error'; note: string; ms: number; trace: EngineTrace }
 
-/** What /choice shows about the latest Jev call; never the key itself. */
-type JevTrace = {
+const LAST_JEV_KEY = 'lastJev'
+const LAST_GEMINI_KEY = 'lastGemini'
+
+/** What /choice shows about the latest engine call; never the key itself. */
+type EngineTrace = {
   at: number
   purpose: 'decisions' | 'skill'
   hasKey: boolean
@@ -54,14 +66,16 @@ type JevTrace = {
   /** The start of the response body, for a response that did not parse. */
   bodyHead: string | null
   answers: Record<string, ChoiceAnswer> | null
-  /** Why ~/.claude/game-choice/last-jev.json could not be written, when it could not. */
+  /** Why the mirror file could not be written, when it could not. */
   fileError?: string
+  /** Secret-shaped values removed from the Gemini request. Absent on a Jev trace. Never the values. */
+  redacted?: number
 }
 
-async function askJev($: EngineInterface, body: JevRequest, purpose: JevTrace['purpose']): Promise<JevResult> {
+async function askJev($: EngineInterface, body: JevRequest, purpose: EngineTrace['purpose']): Promise<JevResult> {
   const started = await $.clock.now()
   const key = await $.env.get('TYPESAFE_API_KEY')
-  const trace: JevTrace = { at: started, purpose, hasKey: Boolean(key), ms: 0, status: null, note: null, bodyHead: null, answers: null }
+  const trace: EngineTrace = { at: started, purpose, hasKey: Boolean(key), ms: 0, status: null, note: null, bodyHead: null, answers: null }
   // Written before the request, so a call that never returns still shows how far it got.
   await $.store.set(LAST_JEV_KEY, { ...trace, note: '요청 보냄, 응답 대기 중' }).catch(() => undefined)
   let result: JevResult
@@ -90,18 +104,94 @@ async function askJev($: EngineInterface, body: JevRequest, purpose: JevTrace['p
   if (result.ok) trace.answers = result.answers
   else trace.note = result.note
   await $.store.set(LAST_JEV_KEY, trace).catch(() => undefined)
-  await writeTrace($, trace)
+  await writeEngineTrace($, 'last-jev.json', LAST_JEV_KEY, trace)
   return result
 }
 
+/** Choice ids and probability keys with the API key removed, so a trace cannot store it. */
+function hideAnswers(answers: Record<string, ChoiceAnswer>, hide: (text: string) => string): Record<string, ChoiceAnswer> {
+  const out: Record<string, ChoiceAnswer> = {}
+  for (const [id, a] of Object.entries(answers)) {
+    const probabilities: Record<string, number> = {}
+    for (const [k, p] of Object.entries(a.probabilities)) probabilities[hide(k)] = p
+    out[hide(id)] = { choice: hide(a.choice), confidence: a.confidence, probabilities }
+  }
+  return out
+}
+
 /**
- * Mirrors the trace to ~/.claude/game-choice/last-jev.json so it can be read outside the
- * session. Outside the mod's own folder on purpose: a write there would hot-reload the mod.
+ * Gemini Decision 1, shadow only. Writes a pending trace, then returns the settled one.
+ * The caller stores that settled trace. A request that loses the timeout race must not write again.
  */
-async function writeTrace($: EngineInterface, trace: JevTrace): Promise<void> {
-  const failed = await writeOutside($, 'last-jev.json', trace)
+async function askGemini($: EngineInterface, body: GeminiRequest, redacted: number): Promise<GeminiResult> {
+  const started = await $.clock.now()
+  const key = (await $.env.get('GEMINI_API_KEY')) ?? ''
+  const hide = (text: string): string => redactSecret(text, key)
+  const trace: EngineTrace = {
+    at: started,
+    purpose: 'decisions',
+    hasKey: key.length > 0,
+    ms: 0,
+    status: null,
+    note: null,
+    bodyHead: null,
+    answers: null,
+    redacted,
+  }
+  await $.store.set(LAST_GEMINI_KEY, { ...trace, note: '요청 보냄, 응답 대기 중' }).catch(() => undefined)
+  let result: GeminiResult
+  if (!key) {
+    result = { ok: false, failure: 'error', note: 'GEMINI_API_KEY 없음', ms: 0, trace }
+  } else {
+    try {
+      const res = await $.http.fetch(GEMINI_URL, {
+        method: 'POST',
+        headers: { 'x-goog-api-key': key, 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      })
+      trace.status = res.status
+      let parsed: unknown = null
+      if (res.ok) {
+        try {
+          parsed = JSON.parse(res.text)
+        } catch {
+          parsed = null
+        }
+      }
+      const outcome = res.ok ? choiceCallOutcome(parsed) : null
+      if (!res.ok || !outcome || 'failure' in outcome) trace.bodyHead = hide(res.text.slice(0, 300))
+      result = !res.ok
+        ? { ok: false, failure: 'error', note: `HTTP ${res.status}`, ms: 0, trace }
+        : outcome && !('failure' in outcome)
+          ? { ok: true, answers: hideAnswers(outcome.answers, hide), ms: 0, trace }
+          : { ok: false, failure: 'error', note: hide(outcome && 'failure' in outcome ? outcome.failure : '응답 형식이 다름'), ms: 0, trace }
+    } catch (err) {
+      const raw = err instanceof Error ? err.message.slice(0, 120) : 'request failed'
+      result = { ok: false, failure: 'error', note: hide(raw), ms: 0, trace }
+    }
+  }
+  const ms = (await $.clock.now()) - started
+  result = { ...result, ms }
+  trace.ms = ms
+  if (result.ok) trace.answers = result.answers
+  else trace.note = result.note
+  return result
+}
+
+/** The trace that matches the result the card kept. A late response does not call this. */
+async function commitGeminiTrace($: EngineInterface, trace: EngineTrace): Promise<void> {
+  await $.store.set(LAST_GEMINI_KEY, trace).catch(() => undefined)
+  await writeEngineTrace($, 'last-gemini.json', LAST_GEMINI_KEY, trace)
+}
+
+/**
+ * Mirrors a trace to ~/.claude/game-choice/<file> so it can be read outside the session.
+ * Outside the mod's own folder on purpose: a write there would hot-reload the mod.
+ */
+async function writeEngineTrace($: EngineInterface, file: string, storeKey: string, trace: EngineTrace): Promise<void> {
+  const failed = await writeOutside($, file, trace)
   // A failed write must not vanish: it shows in /choice instead.
-  if (failed) await $.store.set(LAST_JEV_KEY, { ...trace, fileError: failed }).catch(() => undefined)
+  if (failed) await $.store.set(storeKey, { ...trace, fileError: failed }).catch(() => undefined)
 }
 
 /**
@@ -119,15 +209,16 @@ async function writeOutside($: EngineInterface, name: string, value: unknown): P
   }
 }
 
-function describeTrace(t: JevTrace | undefined): string {
-  if (!t) return '아직 Jev를 부른 적이 없습니다. 상태 요약이 있는 답변이 끝나거나, 입력하다 멈추면 부릅니다.'
+function describeTrace(engine: 'Jev' | 'Gemini', keyName: string, absent: string, t: EngineTrace | undefined): string {
+  if (!t) return absent
   const lines = [
-    `마지막 Jev 호출: ${t.purpose === 'decisions' ? '결정 순위' : '스킬 제안'} · ${t.ms}ms`,
-    `키: ${t.hasKey ? '있음' : '없음 (TYPESAFE_API_KEY)'} · HTTP ${t.status ?? '-'}`,
+    `마지막 ${engine} 호출: ${t.purpose === 'decisions' ? '결정 순위' : '스킬 제안'} · ${t.ms}ms`,
+    `키: ${t.hasKey ? '있음' : `없음 (${keyName})`} · HTTP ${t.status ?? '-'}`,
   ]
   if (t.note) lines.push(`실패: ${t.note}`)
   if (t.bodyHead) lines.push(`응답 앞부분: ${t.bodyHead}`)
   if (t.fileError) lines.push(`기록 파일 쓰기 실패: ${t.fileError}`)
+  if (typeof t.redacted === 'number') lines.push(`가린 비밀 값: ${t.redacted}개`)
   for (const [id, a] of Object.entries(t.answers ?? {})) {
     const probs = Object.entries(a.probabilities)
       .sort((x, y) => y[1] - x[1])
@@ -179,8 +270,8 @@ function tailorPrompt(s: SkillHint): string {
   ].join('\n')
 }
 
-async function rank($: EngineInterface, c: Card): Promise<void> {
-  if (c.decisions.length === 0) return
+/** Jev's rank, or why it has none. The card update is separate so a Gemini write cannot replace it. */
+async function jevOutcome($: EngineInterface, c: Card): Promise<JevResult> {
   // Whatever goes wrong — an exception or a call that never returns — the card must leave 'pending' and say why.
   const asked: Promise<JevResult> = askJev($, decisionRequest(c), 'decisions').catch((err: unknown) => ({
     ok: false as const,
@@ -190,13 +281,94 @@ async function rank($: EngineInterface, c: Card): Promise<void> {
   const timedOut: Promise<JevResult> = $.clock
     .sleep(JEV_TIMEOUT_MS)
     .then(() => ({ ok: false as const, failure: 'error' as const, note: `Jev 응답 시간 초과 (${JEV_TIMEOUT_MS / 1000}초)` }))
-  const r = await Promise.race([asked, timedOut])
+  return Promise.race([asked, timedOut])
+}
+
+async function applyJev($: EngineInterface, c: Card, r: JevResult): Promise<void> {
   await update($, card, cur => {
     if (!cur || cur.resume !== c.resume) return cur // a newer summary replaced it
     if (!r.ok) return { ...cur, rank: r.failure, rankNote: r.note, shadow: shadowVerdict(cur, false, r.note) }
     const ranked = applyDecisionRanks(cur, r.answers)
     return { ...cur, ...ranked, rank: 'jev' as const, rankNote: null, shadow: shadowVerdict(ranked, true) }
   })
+}
+
+/**
+ * Gemini's shadow rank, or null when `GEMINI_API_KEY` is unset (no request, no trace).
+ * Its timeout is its own: a hang here does not change the Jev result already applied.
+ * The trace written here is the one the card kept. askGemini does not write again if it loses the race.
+ */
+async function geminiOutcome($: EngineInterface, c: Card): Promise<GeminiShadow | null> {
+  try {
+    const key = await $.env.get('GEMINI_API_KEY')
+    if (!key) return null
+    const started = await $.clock.now()
+    const built = geminiDecisionRequest(c)
+    const blank = (note: string, ms: number): EngineTrace => ({
+      at: started,
+      purpose: 'decisions',
+      hasKey: true,
+      ms,
+      status: null,
+      note,
+      bodyHead: null,
+      answers: null,
+      redacted: built.redacted,
+    })
+    const asked: Promise<GeminiResult> = askGemini($, built.request, built.redacted).catch((err: unknown) => {
+      const note = redactSecret(err instanceof Error ? err.message.slice(0, 120) : 'request failed', key)
+      return { ok: false as const, failure: 'error' as const, note, ms: 0, trace: blank(note, 0) }
+    })
+    const timedOut: Promise<GeminiResult> = $.clock.sleep(JEV_TIMEOUT_MS).then(async () => {
+      const ms = (await $.clock.now()) - started
+      const note = `Gemini 응답 시간 초과 (${JEV_TIMEOUT_MS / 1000}초)`
+      return { ok: false as const, failure: 'error' as const, note, ms, trace: blank(note, ms) }
+    })
+    const r = await Promise.race([asked, timedOut])
+    await commitGeminiTrace($, { ...r.trace, ms: r.ms, note: r.ok ? null : r.note, answers: r.ok ? r.answers : null })
+    return geminiShadowFromAnswers(c, r.ok ? r.answers : null, r.ms, r.ok ? null : r.note)
+  } catch (err) {
+    const note = err instanceof Error ? err.message.slice(0, 120) : 'request failed'
+    const shadow = geminiShadowFromAnswers(c, null, 0, note)
+    let at = 0
+    try {
+      at = await $.clock.now()
+    } catch {
+      at = 0
+    }
+    await commitGeminiTrace($, {
+      at,
+      purpose: 'decisions',
+      hasKey: false,
+      ms: 0,
+      status: null,
+      note,
+      bodyHead: null,
+      answers: null,
+    }).catch(() => undefined)
+    return shadow
+  }
+}
+
+async function applyGemini($: EngineInterface, c: Card, gemini: GeminiShadow): Promise<void> {
+  await update($, card, cur => (cur && cur.cardAt === c.cardAt ? { ...cur, gemini } : cur))
+  const stored = await $.store.get(PICKS_KEY)
+  if (!Array.isArray(stored)) return
+  const next = attachGeminiToPicks(stored, c.cardAt, c.decisions.map(d => d.question), gemini)
+  if (next.every((row, i) => row === stored[i])) return
+  await $.store.set(PICKS_KEY, next)
+  await writeOutside($, 'picks.json', next)
+}
+
+async function rank($: EngineInterface, c: Card): Promise<void> {
+  if (c.decisions.length === 0) return
+  // Started together, written one after the other: each call has its own 8s cap, and a Gemini
+  // failure cannot replace the Jev rank, the button order, or the shadow verdict.
+  const jevP = jevOutcome($, c)
+  const geminiP = geminiOutcome($, c)
+  await applyJev($, c, await jevP)
+  const gemini = await geminiP
+  if (gemini) await applyGemini($, c, gemini)
 }
 
 async function refine($: EngineInterface, c: Card): Promise<void> {
@@ -243,6 +415,8 @@ async function pick($: EngineInterface, di: number, oi: number): Promise<void> {
         : { eligible: false, pick: null, reasons: ['Jev 순위 전에 고름'] },
       /** A person's pick; the auto-approver, once on, writes true and the analysis leaves those out. */
       auto: false,
+      /** Gemini's shadow rank for this decision; omitted when GEMINI_API_KEY was unset. */
+      ...(next.gemini ? { gemini: geminiPick(next.gemini, di) } : {}),
     }
     const picks = [...history, row].slice(-MAX_PICKS)
     await $.store.set(PICKS_KEY, picks)
@@ -310,12 +484,13 @@ export const register: Register = (on, options) => {
 
   on('session.start', async ($, e, next) => {
     const result = await next(e)
-    await $.command.register({ name: 'choice', description: 'game-choice: 마지막 Jev 호출 결과와 지금 카드 상태' })
+    await $.command.register({ name: 'choice', description: 'game-choice: 마지막 Jev·Gemini 호출 결과와 지금 카드 상태' })
     return result
   })
 
   on('command.run', { command: 'choice' }, async $ => {
-    const trace = (await $.store.get(LAST_JEV_KEY)) as JevTrace | undefined
+    const trace = (await $.store.get(LAST_JEV_KEY)) as EngineTrace | undefined
+    const geminiTrace = (await $.store.get(LAST_GEMINI_KEY)) as EngineTrace | undefined
     const c = await read($, card)
     const cardLine = c
       ? `카드: 결정 ${c.decisions.length}개 · 순위 ${c.rank}${c.rankNote ? ` (${c.rankNote})` : ''} · 확률 ${c.decisions.flatMap(d => d.options.map(o => (o.p === null ? '-' : `${Math.round(o.p * 100)}%`))).join(' ')}`
@@ -327,7 +502,14 @@ export const register: Register = (on, options) => {
         : c.shadow.eligible
           ? `\n섀도: 자동 대상 — 고를 옵션 ${c.shadow.picks.map((p, i) => `Q${i + 1}=${p === null ? '-' : String.fromCharCode(65 + p)}`).join(' ')}`
           : `\n섀도: 자동 아님 — ${c.shadow.reasons.join('; ')}`
-    return { text: `${describeTrace(trace)}\n${cardLine}${shadowLine}` }
+    const geminiLine = !c?.gemini
+      ? ''
+      : c.gemini.failure
+        ? `\nGemini 섀도: 실패 (${c.gemini.failure}) · ${c.gemini.ms}ms`
+        : `\nGemini 섀도: ${c.gemini.decisions.map((d, i) => `Q${i + 1}=${d.choice === null ? '-' : String.fromCharCode(65 + d.choice)} 확신도 ${d.confidence === null ? '-' : `${Math.round(d.confidence * 100)}%`}`).join(' ')} · ${c.gemini.ms}ms`
+    const jevText = describeTrace('Jev', 'TYPESAFE_API_KEY', '아직 Jev를 부른 적이 없습니다. 상태 요약이 있는 답변이 끝나거나, 입력하다 멈추면 부릅니다.', trace)
+    const geminiText = describeTrace('Gemini', 'GEMINI_API_KEY', '아직 Gemini를 부른 적이 없습니다. GEMINI_API_KEY가 있을 때만 결정 순위를 섀도로 기록합니다.', geminiTrace)
+    return { text: `${jevText}\n${geminiText}\n${cardLine}${shadowLine}${geminiLine}` }
   })
 
   on('turn.complete', async ($, e, next) => {
@@ -341,6 +523,7 @@ export const register: Register = (on, options) => {
       shadow: null,
       rank: 'pending',
       rankNote: null,
+      gemini: null,
       refined: null,
       isRefining: false,
     }

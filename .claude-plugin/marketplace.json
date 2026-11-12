@@ -6,7 +6,7 @@
   },
   "metadata": {
     "description": "GAME MODE for Claude Code: 23 mods for an 8-bit look where every piece does a job (HUD, battle log, three guards, save point and title screen, sound cues, stance, casting, clear time, party, quest, minimap, hint, map, spell check, answer memory, hedge mark, item get, equip, achievements, choice, dev floor)",
-    "version": "0.4.4"
+    "version": "0.4.5"
   },
   "plugins": [
     {
@@ -300,8 +300,8 @@
     {
       "name": "game-choice",
       "source": "./plugins/game-choice",
-      "description": "The status summary's resume prompt as the prompt box's suggestion (Tab), its decisions as buttons that refine it, Jev-ranked in the background; skill suggestions while typing",
-      "version": "0.3.0",
+      "description": "The status summary's resume prompt as the prompt box's suggestion (Tab), its decisions as buttons that refine it, Jev-ranked in the background, with an optional Gemini Decision 1 shadow rank; skill suggestions while typing",
+      "version": "0.4.0",
       "category": "development",
       "keywords": [
         "mod",

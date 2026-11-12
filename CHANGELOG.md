@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.4.5 — 2026-11-12
+
+### Added
+- **game-choice** 0.4.0: with `GEMINI_API_KEY` set, the same decision card is also sent to Gemini Decision 1 (`gemini-decision-1`, `POST https://generativelanguage.googleapis.com/v1beta/decisions`, header `x-goog-api-key`) in the shadow. Jev still ranks the buttons and the shadow verdict. Gemini's per-option probabilities, choice, confidence, latency and failure are stored on the pick (`~/.claude/game-choice/picks.json`) and shown by `/choice` (`last-gemini.json`). `scripts/analyze-picks.mjs` reports Gemini's first-choice hit rate and calibration beside Jev's, and how often the two engines agree. Nothing is picked or sent on Gemini's answer. Without the key, no request is made and the key is never stored.
+  - The text sent to Google is the same decision state Jev already sees (items 1, 2 and 4, capped at 3000 characters, resume included) plus the question and each option's label and sentence. Skill drafts are not sent to Gemini. Before that text is sent, values that match the secret shapes copied from game-trap-guard and game-spell-check are replaced with `[redacted]`. The Gemini trace records how many values were removed, never the values, and it is the result the card kept: a timeout is written there, and a later response does not replace it. A pick saved before Gemini settles is filled in when the call finishes. The report counts Gemini's decisions even when Jev did not rank them. Jev still receives the original text. `check.sh` only forces palette copies to match, so this copy lives in the plugin and is not compared byte-for-byte with the other two.
+
+### Evidence
+- `bash scripts/check.sh` ✓ marketplace + 23 plugins (`claude plugin validate --strict`, `claude plugin test`) on Claude Code 2.1.296. game-choice 35/35, including secret redaction and the trace matching the card. No live call to Google. Fake keys are built at run time.
+
 ## 0.4.4 — 2026-11-09
 
 ### Fixed

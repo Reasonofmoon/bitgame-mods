@@ -1,7 +1,9 @@
 // core.ts
 // Pure parts of game-choice: reading the status summary, composing the resume prompt,
-// and the Jev (TypeSafe System One) request and response shapes. No engine calls here.
-import type { Decision, DecisionOption, ShadowVerdict, SkillCandidate, SkillHint, Summary } from '../types'
+// and the Jev (TypeSafe System One) and Gemini Decisions request and response shapes.
+// No engine calls here.
+import type { Decision, DecisionOption, GeminiPick, GeminiShadow, ShadowVerdict, SkillCandidate, SkillHint, Summary } from '../types'
+import { redactSecrets } from './secrets'
 
 const SUMMARY_TAG = '[상태 요약]'
 
@@ -186,6 +188,152 @@ export function applyDecisionRanks(summary: Summary, answers: Record<string, Cho
       }
     }),
   }
+}
+
+// ---- Gemini Decisions (gemini-decision-1), shadow only ----
+
+/**
+ * Gemini Developer API, v1beta.
+ * `POST` this URL with header `x-goog-api-key` (not a Bearer token, not a query parameter).
+ */
+export const GEMINI_URL = 'https://generativelanguage.googleapis.com/v1beta/decisions'
+export const GEMINI_MODEL = 'gemini-decision-1'
+
+export type GeminiText = { type: 'text'; text: string }
+
+export type GeminiRequest = {
+  model: string
+  /** One text block. The REST schema also allows a bare string; the block form is what we send. */
+  input: GeminiText[]
+  questions: Record<string, ChoiceQuestion>
+}
+
+/**
+ * The summary Gemini is allowed to see: items 1, 2 and 4, the question, and each option's
+ * label and sentence, with secret-shaped values removed. Jev keeps the original summary.
+ */
+export function redactSummary(summary: Summary): { summary: Summary; redacted: number } {
+  let redacted = 0
+  const scrub = (text: string): string => {
+    const next = redactSecrets(text)
+    redacted += next.count
+    return next.text
+  }
+  // Scrub before reading `redacted`: an object literal evaluates the count field first.
+  const cleaned: Summary = {
+    ...summary,
+    resume: scrub(summary.resume),
+    done: summary.done.map(scrub),
+    todo: summary.todo.map(scrub),
+    decisions: summary.decisions.map(d => ({
+      ...d,
+      question: scrub(d.question),
+      options: d.options.map(o => ({ ...o, label: scrub(o.label), append: scrub(o.append) })),
+    })),
+  }
+  return { redacted, summary: cleaned }
+}
+
+/**
+ * The same Choice questions Jev is asked, against the same state text, as one text content block,
+ * after secret-shaped values are removed. Option ids are A, B, C…, already alphabetical.
+ * `redacted` is how many values were removed. It is not part of the request body.
+ */
+export function geminiDecisionRequest(summary: Summary): { request: GeminiRequest; redacted: number } {
+  const clean = redactSummary(summary)
+  const req = decisionRequest(clean.summary)
+  // The resume itself is not cut inside decisionState. Gemini's input stays within the published cap.
+  const text = req.state.length > STATE_MAX_CHARS ? req.state.slice(0, STATE_MAX_CHARS) : req.state
+  return {
+    redacted: clean.redacted,
+    request: { model: GEMINI_MODEL, input: [{ type: 'text', text }], questions: req.questions },
+  }
+}
+
+/** `prompt_feedback.block_reason` when the REST reference says the input was blocked and answers are empty. */
+export function blockReason(body: unknown): string | null {
+  if (!isRecord(body) || !isRecord(body.prompt_feedback)) return null
+  const reason = body.prompt_feedback.block_reason
+  return typeof reason === 'string' && reason.trim() ? reason : null
+}
+
+/**
+ * Choice answers in a Decisions response, or why there are none.
+ * Null when the body is not the documented shape (the caller says the format differed).
+ */
+export function choiceCallOutcome(body: unknown): { answers: Record<string, ChoiceAnswer> } | { failure: string } | null {
+  const blocked = blockReason(body)
+  if (blocked) return { failure: `입력 차단 (${blocked})` }
+  const answers = parseChoiceAnswers(body)
+  if (!answers) return null
+  if (Object.keys(answers).length === 0) return { failure: '응답에 답이 없음' }
+  return { answers }
+}
+
+/** Gemini's per-decision rank. `failure` is the call-level reason; a parsed call still marks a missing question. */
+export function geminiShadowFromAnswers(summary: Summary, answers: Record<string, ChoiceAnswer> | null, ms: number, failure: string | null): GeminiShadow {
+  if (failure || !answers) {
+    const why = failure ?? '응답 형식이 다름'
+    return {
+      ms,
+      failure: why,
+      decisions: summary.decisions.map(() => ({ p: [], choice: null, confidence: null, failure: why })),
+    }
+  }
+  return {
+    ms,
+    failure: null,
+    decisions: summary.decisions.map((d, i) => {
+      const a = answers[`d${i}`]
+      if (!a) return { p: d.options.map(() => null), choice: null, confidence: null, failure: '응답에 없음' }
+      const p = d.options.map((_, j) => a.probabilities[optionKey(j)] ?? null)
+      const choice = d.options.findIndex((_, j) => optionKey(j) === a.choice)
+      return {
+        p,
+        choice: choice >= 0 ? choice : null,
+        confidence: a.confidence,
+        failure: choice >= 0 ? null : `알 수 없는 선택지 ${a.choice}`,
+      }
+    }),
+  }
+}
+
+/**
+ * Fills `gemini` on picks that were saved before this card's Gemini call settled.
+ * A pick that already has a Gemini record is left as it was.
+ */
+export function attachGeminiToPicks<T extends { cardAt?: unknown; question?: unknown; gemini?: unknown }>(
+  picks: readonly T[],
+  cardAt: number,
+  questions: readonly string[],
+  shadow: GeminiShadow,
+): T[] {
+  return picks.map(row => {
+    if (typeof row !== 'object' || row === null) return row
+    if (row.cardAt !== cardAt || row.gemini) return row
+    if (typeof row.question !== 'string') return row
+    const di = questions.indexOf(row.question)
+    if (di < 0) return row
+    return { ...row, gemini: geminiPick(shadow, di) }
+  })
+}
+
+/** The flat record stored on one pick. */
+export function geminiPick(shadow: GeminiShadow, index: number): GeminiPick {
+  const d = shadow.decisions[index]
+  return {
+    p: d?.p ?? [],
+    choice: d?.choice ?? null,
+    confidence: d?.confidence ?? null,
+    ms: shadow.ms,
+    failure: d?.failure ?? shadow.failure,
+  }
+}
+
+/** Drops a secret from text that will be stored or shown. An empty secret leaves the text as it is. */
+export function redactSecret(text: string, secret: string): string {
+  if (!secret) return text
+  return text.split(secret).join('…')
 }
 
 // ---- shadow auto-approval ----
